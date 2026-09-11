@@ -40,7 +40,7 @@ export default function SuggestEditForm({
     const changes: Record<string, string> = {};
     (Object.keys(fields) as (keyof typeof fields)[]).forEach((key) => {
       const original = (person[key] ?? "") as string;
-      if (fields[key] !== original) changes[key] = fields[key];
+      if (fields[key] !== original) changes[key] = fields[key] ?? "";
     });
     return changes;
   };
