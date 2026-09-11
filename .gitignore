@@ -1,0 +1,8 @@
+node_modules/
+.next/
+dist-electron/
+android/app/build/
+android/.gradle/
+*.log
+.DS_Store
+.env*.local
