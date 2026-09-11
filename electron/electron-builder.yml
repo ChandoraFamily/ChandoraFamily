@@ -1,0 +1,19 @@
+appId: com.lineage.app
+productName: Lineage
+directories:
+  output: ../dist-electron
+files:
+  - electron/main.js
+  - .next/standalone/**/*
+  - .next/static/**/*
+  - public/**/*
+extraMetadata:
+  main: electron/main.js
+win:
+  target:
+    - nsis
+    - portable
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

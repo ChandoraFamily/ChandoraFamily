@@ -1,0 +1,536 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: #080b20;
+  color: #e9edff;
+}
+
+/* Dark genealogy-board surface from the reference design. */
+.tree-canvas-bg {
+  background-color: #0a0e26;
+  background-image:
+    radial-gradient(circle at 52% -8%, rgba(86, 70, 170, 0.16), transparent 42%),
+    radial-gradient(circle at 50% 115%, rgba(41, 55, 125, 0.14), transparent 48%),
+    radial-gradient(rgba(93, 106, 153, 0.17) 1px, transparent 1px);
+  background-size: auto, auto, 22px 22px;
+}
+
+.lineage-app {
+  background: #080b20;
+}
+
+.lineage-header {
+  position: relative;
+  z-index: 30;
+  background: rgba(6, 9, 25, 0.96);
+  border-color: #202944;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.lineage-header-button {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid #293452;
+  border-radius: 10px;
+  background: #0d142a;
+  color: #d6dbeb;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+
+.lineage-header-button:hover {
+  background: #131b36;
+  border-color: #3a466a;
+  color: #fff;
+}
+
+.lineage-primary-button {
+  border-color: #4639a4;
+  color: #ddd6ff;
+  background: #101633;
+}
+
+.lineage-primary-button:hover {
+  border-color: #6651db;
+  background: #171d40;
+}
+
+.lineage-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid #b18a64;
+  background: #0e1329;
+  color: #f1e5d7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lineage-mobile-menu {
+  background: #090d23;
+  border-color: #202944;
+}
+
+.lineage-menu-button {
+  border: 1px solid #293452;
+  border-radius: 9px;
+  padding: 9px 13px;
+  background: #0d142a;
+  color: #cdd3e5;
+  font-size: 13px;
+  text-align: left;
+}
+
+/* PersonSearch is kept as its own component; this wrapper gives its native
+   input/button elements the same dark visual language as the reference. */
+.lineage-search input {
+  border-color: #293452 !important;
+  background: #0d142a !important;
+  color: #e8ecfb !important;
+}
+
+.lineage-search input::placeholder {
+  color: #6e7895 !important;
+}
+
+.lineage-search button {
+  color: #9ca6c1 !important;
+}
+
+/* Subtle ledger-paper texture retained for other screens. */
+.ledger-bg {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    rgba(130, 142, 174, 0.05) 28px
+  );
+}
+
+@media (max-width: 900px) {
+  .lineage-header {
+    padding-left: 14px;
+    padding-right: 14px;
+    gap: 10px;
+  }
+
+  /* Keep the desktop search out of the header's second row.
+     The JSX provides a separate mobile search inside the menu. */
+  .lineage-header > .lineage-search {
+    order: initial;
+    flex-basis: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid #8d68ff;
+  outline-offset: 2px;
+}
+
+
+.lineage-mobile-trigger {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid #293452;
+  border-radius: 10px;
+  background: #0d142a;
+  color: #d8dded;
+  font-size: 22px;
+  line-height: 1;
+  transition: background .18s ease, border-color .18s ease;
+}
+
+.lineage-mobile-trigger:hover {
+  background: #131b36;
+  border-color: #3a466a;
+}
+
+.lineage-mobile-menu {
+  width: 100%;
+}
+
+.lineage-mobile-search {
+  width: 100%;
+}
+
+.lineage-mobile-search > * {
+  width: 100%;
+}
+
+@media (max-width: 639px) {
+  .lineage-header {
+    min-height: 68px;
+  }
+
+  .lineage-header .lineage-avatar {
+    display: none;
+  }
+}
+
+
+/* Unified dark/glass form system */
+.lineage-modal {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #26304c;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(15,22,45,.98), rgba(8,13,31,.99));
+  color: #e9edff;
+  box-shadow: 0 24px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.lineage-modal::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #5f45ff, #9d67ff, #d84b9b);
+}
+
+.lineage-form,
+.lineage-form * {
+  box-sizing: border-box;
+}
+
+.lineage-label {
+  display: block;
+  color: #aab4cc;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.lineage-label > span:first-child,
+.lineage-label > input,
+.lineage-label > select,
+.lineage-label > textarea {
+  margin-top: 4px;
+}
+
+.lineage-input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #2a3553;
+  border-radius: 10px;
+  background: #070b19;
+  color: #edf0ff;
+  padding: 9px 12px;
+  font-size: 13px;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.lineage-input::placeholder {
+  color: #65708d;
+}
+
+.lineage-input:hover {
+  border-color: #3b486c;
+}
+
+.lineage-input:focus {
+  outline: none;
+  border-color: #735cff;
+  box-shadow: 0 0 0 3px rgba(115,92,255,.13);
+  background: #090e20;
+}
+
+select.lineage-input {
+  color-scheme: dark;
+}
+
+.lineage-input[type="date"] {
+  color-scheme: dark;
+}
+
+.lineage-primary-action {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #6b52ff;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #6047ff, #4c37df);
+  color: #fff;
+  padding: 0 15px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 22px rgba(77,56,223,.22);
+  transition: transform .15s ease, filter .15s ease;
+}
+
+.lineage-primary-action:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.lineage-secondary-action {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #2c3857;
+  border-radius: 10px;
+  background: #111a30;
+  color: #cbd2e5;
+  padding: 0 15px;
+  font-size: 13px;
+  transition: background .18s ease, border-color .18s ease;
+}
+
+.lineage-secondary-action:hover {
+  background: #18223c;
+  border-color: #405071;
+  color: #fff;
+}
+
+.lineage-danger-action {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(221,75,137,.5);
+  border-radius: 10px;
+  background: rgba(107,26,71,.2);
+  color: #ef8fbd;
+  padding: 0 15px;
+}
+
+.lineage-danger-action:hover {
+  background: rgba(132,31,83,.3);
+}
+
+.lineage-suggest-action {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(180,143,255,.38);
+  border-radius: 10px;
+  background: rgba(92,62,161,.16);
+  color: #c4b2ff;
+  padding: 0 15px;
+}
+
+.lineage-result {
+  border: 1px solid rgba(115,92,255,.35);
+  border-radius: 12px;
+  background: rgba(76,55,180,.13);
+  padding: 12px;
+  color: #e3ddff;
+  font-size: 13px;
+}
+
+.lineage-id-box {
+  border: 1px solid #26304c;
+  background: #070b19;
+}
+
+.lineage-detail-list > div {
+  border-bottom: 1px solid rgba(38,48,76,.65);
+  padding-bottom: 8px;
+}
+
+.lineage-item {
+  border: 1px solid #26304c;
+  background: rgba(7,11,25,.72);
+}
+
+.lineage-tab {
+  color: #8993ad;
+  transition: color .18s ease, background .18s ease;
+}
+
+.lineage-tab:hover {
+  color: #e9edff;
+  background: rgba(255,255,255,.025);
+}
+
+@media (max-width: 640px) {
+  .lineage-modal {
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+}
+
+
+/* =========================================================
+   Floating Google/YouTube-style account menu
+   ========================================================= */
+
+.lineage-header {
+  overflow: visible;
+}
+
+/* The profile wrapper in page.tsx is "relative", so the menu
+   is anchored to the profile button and floats outside the bar. */
+.lineage-account-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 1000;
+  width: 330px;
+  max-width: calc(100vw - 20px);
+  overflow: hidden;
+  border: 1px solid #293452;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(15, 22, 45, 0.99), rgba(8, 13, 31, 0.99));
+  color: #e9edff;
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.55),
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  animation: lineage-account-menu-in 0.14s ease-out;
+}
+
+.lineage-account-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.lineage-account-avatar {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid #7658df;
+  background: #111733;
+  color: #f2edff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.lineage-account-divider {
+  height: 1px;
+  background: #252e47;
+}
+
+.lineage-account-section {
+  padding: 7px 8px;
+}
+
+.lineage-account-item {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #dce2f2;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lineage-account-item:hover {
+  background: rgba(113, 88, 255, 0.12);
+  color: #ffffff;
+}
+
+.lineage-account-icon {
+  width: 24px;
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  color: #a996ff;
+  font-size: 17px;
+}
+
+.lineage-account-danger {
+  color: #ef9abb;
+}
+
+.lineage-account-danger .lineage-account-icon {
+  color: #ef78aa;
+}
+
+.lineage-account-danger:hover {
+  background: rgba(190, 53, 111, 0.12);
+  color: #ffb0cb;
+}
+
+.lineage-account-dropdown-mobile {
+  right: -4px;
+  top: calc(100% + 8px);
+}
+
+.lineage-logo-mark {
+  background-image: url('/logo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  pointer-events: none;
+}
+
+.lineage-logo-text {
+  background-image: url('/logo-text-bg-remove-extra-gold.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  pointer-events: none;
+}
+
+@keyframes lineage-account-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.985);
+    transform-origin: top right;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transform-origin: top right;
+  }
+}
+
+@media (max-width: 639px) {
+  .lineage-account-dropdown {
+    width: min(330px, calc(100vw - 20px));
+    max-height: calc(100vh - 82px);
+    overflow-y: auto;
+  }
+}

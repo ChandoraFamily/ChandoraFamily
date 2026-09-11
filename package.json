@@ -1,0 +1,49 @@
+{
+  "name": "lineage-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Genealogy app with an interactive pedigree/family-tree graph, person search, and a JSON-backed REST API. Ships as a web app, and wraps into Android (Capacitor) and Windows (Electron) builds.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "electron:dev": "concurrently -k \"npm:dev\" \"wait-on http://localhost:3000 && electron electron/main.js\"",
+    "electron:build": "next build && electron-builder --config electron/electron-builder.yml",
+    "cap:sync": "next build && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/clipboard": "^6.0.3",
+    "bcryptjs": "2.4.3",
+    "jsonwebtoken": "9.0.2",
+    "mongoose": "8.5.0",
+    "next": "14.2.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "6.1.0",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "6.1.0",
+    "@capacitor/core": "6.1.0",
+    "@types/bcryptjs": "2.4.6",
+    "@types/jsonwebtoken": "9.0.6",
+    "@types/node": "20.14.0",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.19",
+    "concurrently": "8.2.2",
+    "electron": "^30.5.1",
+    "electron-builder": "24.13.3",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.5",
+    "postcss": "8.4.38",
+    "tailwindcss": "3.4.4",
+    "tsx": "^4.23.13",
+    "typescript": "5.4.5",
+    "wait-on": "7.2.0"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}
