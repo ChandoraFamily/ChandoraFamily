@@ -7,13 +7,21 @@ const connections = new Map<string, Connection>();
 
 function uriFor(dbKey: string): string {
   const envKey = `MONGODB_URI_${dbKey.toUpperCase()}`;
-  return process.env[envKey] || process.env.MONGODB_URI!;
+  return process.env[envKey] || process.env.MONGODB_URI! || "";
 }
 
 export function getConnection(dbKey: string = "default"): Connection {
   let conn = connections.get(dbKey);
   if (!conn) {
-    conn = mongoose.createConnection(uriFor(dbKey));
+    const uri = uriFor(dbKey);
+    if (uri) {
+      conn = mongoose.createConnection(uri, {
+        serverSelectionTimeoutMS: 2000,
+        connectTimeoutMS: 2000,
+      });
+    } else {
+      conn = mongoose.createConnection();
+    }
     connections.set(dbKey, conn);
   }
   return conn;

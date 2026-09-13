@@ -4,7 +4,8 @@ const nextConfig = {
   // actually used. Electron's main process spawns this server directly
   // (see electron/main.js), which is what lets the same Next.js app -
   // API routes included - run inside a Windows desktop shell.
-  output: process.env.BUILD_TARGET === "electron" ? "standalone" : undefined,
+  // output: process.env.BUILD_TARGET === "electron" ? "standalone" : undefined,
+  output: "standalone",
   reactStrictMode: true,
   images: {
     // Person photos may be uploaded/stored locally or point at remote URLs.
@@ -15,13 +16,13 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "X-Frame-Options", value: "DENY" },
+          // { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          {
-            key: "Permission-Policy",
-            value: "camera=(), microphone=(), geolocation-()",
-          },
+          // {
+          //   key: "Permission-Policy",
+          //   value: "camera=(), microphone=(), geolocation-()",
+          // },
         ],
       },
     ];

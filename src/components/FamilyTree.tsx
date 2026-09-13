@@ -8,6 +8,7 @@ interface FamilyTreeProps {
   focusId: string;
   isAdmin?: boolean;
   onSelectPerson: (personId: string) => void;
+  onTreeLoaded?: () => void;
 }
 
 // Compact dimensions tuned to the dark genealogy-board design.
@@ -37,6 +38,7 @@ export default function FamilyTree({
   focusId,
   isAdmin,
   onSelectPerson,
+  onTreeLoaded,
 }: FamilyTreeProps) {
   const [graph, setGraph] = useState<FamilyTreeGraph | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,8 @@ export default function FamilyTree({
   const [upDepth, setUpDepth] = useState(5);
   const [downDepth, setDownDepth] = useState(5);
   const [expandAncestors, setExpandAncestors] = useState(false);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const hasUserPanned = useRef(false);
 
   const dragState = useRef<{
     startX: number;
@@ -64,6 +68,27 @@ export default function FamilyTree({
   const groupRef = useRef<SVGGElement>(null);
   const rafId = useRef<number | null>(null);
   const liveTransform = useRef(transform);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) {
+        setContainerSize((prev) => {
+          if (prev.width === w && prev.height === h) return prev;
+          return { width: w, height: h };
+        });
+      }
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -457,20 +482,51 @@ export default function FamilyTree({
     const focusPosition = layout.positions.get(focusId);
     if (!focusPosition) return;
 
+    const el = containerRef.current;
+    const viewportW =
+      containerSize.width > 0
+        ? containerSize.width
+        : el?.clientWidth ||
+          (typeof window !== "undefined" ? window.innerWidth : 1200);
+    const viewportH =
+      containerSize.height > 0
+        ? containerSize.height
+        : el?.clientHeight ||
+          (typeof window !== "undefined" ? window.innerHeight : 800);
+
     const focusX = layout.offsetX + focusPosition.x + CARD_W / 2;
 
     const focusY = layout.offsetY + focusPosition.y + CARD_H / 2;
 
-    setTransform({
-      x: VIEWBOX_WIDTH / 2 - focusX,
-      y: VIEWBOX_HEIGHT / 2 - focusY,
-      scale: 1,
-    });
+    const targetScale = 1;
+
+    const next = {
+      x: Math.round(viewportW / 2 - focusX * targetScale),
+      y: Math.round(viewportH / 2 - focusY * targetScale),
+      scale: targetScale,
+    };
+
+    setTransform(next);
+
+    liveTransform.current = next;
+
+    if (groupRef.current) {
+      groupRef.current.style.transform = `translate(${next.x}px, ${next.y}px scale(${next.scale}))`;
+    }
+
+    // setTransform({
+    //   x: VIEWBOX_WIDTH / 2 - focusX,
+    //   y: VIEWBOX_HEIGHT / 2 - focusY,
+    //   scale: 1,
+    // });
   }, [focusId, layout]);
 
   useEffect(() => {
-    centerOnFocus();
-  }, [centerOnFocus]);
+    if (layout && !hasUserPanned.current) {
+      centerOnFocus();
+      onTreeLoaded?.();
+    }
+  }, [layout, containerSize, centerOnFocus, onTreeLoaded]);
 
   // Zoom range depends on the currently-loaded graph: scale 1 = whole tree
   // fits (that's how viewW/viewH were sized), and the max scale is whatever
@@ -570,12 +626,34 @@ export default function FamilyTree({
   const onWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
-      setTransform((t) => ({
-        ...t,
-        scale: clampScale(t.scale - e.deltaY * 0.001),
-      }));
+      const el = containerRef.current;
+      const rect = el?.getBoundingClientRect();
+      const pivotX = rect
+        ? e.clientX - rect.left
+        : (containerSize.width || 1200) / 2;
+      const pivotY = rect
+        ? e.clientY - rect.top
+        : (containerSize.height || 800) / 2;
+
+      const factor = Math.exp(-e.deltaY * 0.0015);
+
+      setTransform((prev) => {
+        const nextScale = clampScale(prev.scale * factor);
+        if (Math.abs(nextScale - prev.scale) < 0.0001) return prev;
+
+        const ratio = nextScale / prev.scale;
+        const nextX = pivotX - (pivotX - prev.x) * ratio;
+        const nextY = pivotY - (pivotY - prev.y) * ratio;
+
+        const next = { x: nextX, y: nextY, scale: nextScale };
+        liveTransform.current = next;
+        if (groupRef.current) {
+          groupRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.scale})`;
+        }
+        return next;
+      });
     },
-    [clampScale],
+    [clampScale, containerSize],
   );
 
   const zoomToNode = useCallback(
@@ -610,8 +688,44 @@ export default function FamilyTree({
     [layout],
   );
 
-  const zoomBy = (delta: number) =>
-    setTransform((t) => ({ ...t, scale: clampScale(t.scale + delta) }));
+  // const zoomBy = (delta: number) =>
+  //   setTransform((t) => ({ ...t, scale: clampScale(t.scale + delta) }));
+
+  const zoomBy = useCallback(
+    (delta: number) => {
+      const el = containerRef.current;
+      const viewportW =
+        containerSize.width > 0
+          ? containerSize.width
+          : el?.clientWidth ||
+            (typeof window !== "undefined" ? window.innerWidth : 1200);
+      const viewportH =
+        containerSize.height > 0
+          ? containerSize.height
+          : el?.clientHeight ||
+            (typeof window !== "undefined" ? window.innerHeight : 800);
+
+      const pivotX = viewportW / 2;
+      const pivotY = viewportH / 2;
+
+      setTransform((prev) => {
+        const nextScale = clampScale(prev.scale + delta);
+        if (Math.abs(nextScale - prev.scale) < 0.0001) return prev;
+
+        const ratio = nextScale / prev.scale;
+        const nextX = pivotX - (pivotX - prev.x) * ratio;
+        const nextY = pivotY - (pivotY - prev.y) * ratio;
+
+        const next = { x: nextX, y: nextY, scale: nextScale };
+        liveTransform.current = next;
+        if (groupRef.current) {
+          groupRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.scale})`;
+        }
+        return next;
+      });
+    },
+    [clampScale, containerSize],
+  );
 
   const loadMoreAncestors = () => {
     setUpDepth((d) => d + 1);
@@ -623,7 +737,9 @@ export default function FamilyTree({
   const exportAsImage = useCallback(
     async (scaleFactor = 3) => {
       if (!layout || !graph) return;
-      const svgEl = containerRef.current?.querySelector("svg");
+      const svgEl = containerRef.current?.querySelector(
+        "svg[data-tree-canvas='true'",
+      );
       if (!svgEl) return;
 
       const clone = svgEl.cloneNode(true) as SVGSVGElement;
@@ -692,7 +808,13 @@ export default function FamilyTree({
   if (!graph || !layout) {
     return (
       <div className="flex h-full items-center justify-center bg-[#0a0e26] text-slate-500">
-        <p>Loading tree…</p>
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#8a5cff] opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#a77bff]" />
+          </span>
+          <p className="text-xs tracking-wide text-slate-400">Loading tree…</p>
+        </div>
       </div>
     );
   }
@@ -701,6 +823,7 @@ export default function FamilyTree({
   const cy = layout.offsetY;
 
   const relationLabel = (node: TreeNode) => {
+    if (!graph) return "Family member";
     if (node.id === localFocusId) return "Head of Family";
     const hasSpouse = graph.edges.some(
       (e) => e.type === "spouse" && (e.from === node.id || e.to === node.id),
@@ -800,12 +923,13 @@ export default function FamilyTree({
       )}
 
       <svg
+        data-tree-canvas="true"
         width="100%"
         height="100%"
         // viewBox={`0 0 ${layout.viewW} ${layout.viewH}`}
-        viewBox={`0 0 ${containerRef.current?.clientWidth || 1200} ${
-          containerRef.current?.clientHeight || 800
-        }`}
+        // viewBox={`0 0 ${containerRef.current?.clientWidth || 1200} ${
+        //   containerRef.current?.clientHeight || 800
+        // }`}
         // viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
         style={{ touchAction: "none", userSelect: "none" }}
       >

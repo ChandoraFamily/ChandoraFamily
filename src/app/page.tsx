@@ -11,6 +11,7 @@ import AdminInbox from "@/components/AdminInbox";
 import ContactForm from "@/components/ContactForm";
 import RelationshipFinder from "@/components/RelationshipFinder";
 import ProfileSettings from "@/components/ProfileSettings";
+import TreeLoadingSplash from "@/components/TreeLoadingSplash";
 
 function getUserName(user: unknown) {
   if (!user || typeof user !== "object") return "";
@@ -85,6 +86,9 @@ export default function HomePage() {
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [registerSuccess, setRegisterSuccess] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [isPageSplashComplete, setIsSplashComplete] = useState(false);
+  const [isTreeReady, setIsTreeReady] = useState(false);
+  const [pageSplashError, setPageSplashError] = useState<string | null>(null);
 
   const userName = getUserName(user);
   const userProfilePicture = getUserProfilePicture(user);
@@ -101,10 +105,15 @@ export default function HomePage() {
       })
       .then((json) => {
         const people: Person[] = json.data ?? [];
-        if (people.length) setFocusId(people[0].id);
+        if (people.length) {
+          setFocusId(people[0].id);
+        } else {
+          setIsTreeReady(true);
+        }
       })
       .catch((err) => {
         console.log(err);
+        setPageSplashError("Failed to initialize family tree.");
       });
   }, [focusId, refreshKey]);
 
@@ -136,7 +145,18 @@ export default function HomePage() {
   };
 
   return (
-    <main className="lineage-app flex h-screen flex-col">
+    <main className="lineage-app relative flex h-screen flex-col">
+      {!isPageSplashComplete && (
+        <TreeLoadingSplash
+          isLoaded={isTreeReady}
+          error={pageSplashError}
+          onRetry={() => {
+            setPageSplashError(null);
+            setRefreshKey((k) => k + 1);
+          }}
+          onComplete={() => setIsSplashComplete(true)}
+        />
+      )}
       <header className="lineage-header flex min-h-[76px] items-center justify-between gap-4 border-b px-4 py-3 sm:px-6 lg:px-7">
         <div className="flex min-w-0 shrink-0 items-center gap-3">
           <div
@@ -501,6 +521,7 @@ export default function HomePage() {
               focusId={focusId}
               isAdmin={isAdmin}
               onSelectPerson={(id) => setSelectedId(id)}
+              onTreeLoaded={() => setIsTreeReady(true)}
             />
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center">
