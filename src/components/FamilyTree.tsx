@@ -22,6 +22,7 @@ import {
 interface FamilyTreeProps {
   focusId: string;
   isAdmin?: boolean;
+  isLoggedIn?: boolean;
   onSelectPerson: (personId: string) => void;
   onTreeLoaded?: () => void;
   onFocusAdmin?: () => void;
@@ -53,6 +54,7 @@ function lifespan(node: TreeNode, lang: "en" | "hi" = "en") {
 export default function FamilyTree({
   focusId,
   isAdmin,
+  isLoggedIn,
   onSelectPerson,
   onTreeLoaded,
   onFocusAdmin,
@@ -221,7 +223,10 @@ export default function FamilyTree({
           setExpandingId(null);
           setIsOfflineCached(false);
           try {
-            localStorage.setItem(`lineage_tree_v3_${focusId}`, JSON.stringify(json.data));
+            localStorage.setItem(
+              `lineage_tree_v3_${focusId}`,
+              JSON.stringify(json.data),
+            );
             localStorage.setItem("lineage_last_focus", focusId);
           } catch {
             // ignore quota error
@@ -530,11 +535,13 @@ export default function FamilyTree({
     const viewportW =
       containerSize.width > 0
         ? containerSize.width
-        : el?.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 1200);
+        : el?.clientWidth ||
+          (typeof window !== "undefined" ? window.innerWidth : 1200);
     const viewportH =
       containerSize.height > 0
         ? containerSize.height
-        : el?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 800);
+        : el?.clientHeight ||
+          (typeof window !== "undefined" ? window.innerHeight : 800);
 
     const focusX = layout.offsetX + focusPosition.x + CARD_W / 2;
     const focusY = layout.offsetY + focusPosition.y + CARD_H / 2;
@@ -628,13 +635,20 @@ export default function FamilyTree({
           y: (p1.y + p2.y) / 2 - oy,
         };
 
-        const { initialDistance, initialScale, initialCenter, initialTransform } = pinchState.current;
+        const {
+          initialDistance,
+          initialScale,
+          initialCenter,
+          initialTransform,
+        } = pinchState.current;
         const ratio = dist / initialDistance;
         const nextScale = clampScale(initialScale * ratio);
         const scaleRatio = nextScale / initialScale;
 
-        const nextX = currentCenter.x - (initialCenter.x - initialTransform.x) * scaleRatio;
-        const nextY = currentCenter.y - (initialCenter.y - initialTransform.y) * scaleRatio;
+        const nextX =
+          currentCenter.x - (initialCenter.x - initialTransform.x) * scaleRatio;
+        const nextY =
+          currentCenter.y - (initialCenter.y - initialTransform.y) * scaleRatio;
 
         const next = { x: nextX, y: nextY, scale: nextScale };
         liveTransform.current = next;
@@ -697,8 +711,12 @@ export default function FamilyTree({
       e.preventDefault();
       const el = containerRef.current;
       const rect = el?.getBoundingClientRect();
-      const pivotX = rect ? e.clientX - rect.left : (containerSize.width || 1200) / 2;
-      const pivotY = rect ? e.clientY - rect.top : (containerSize.height || 800) / 2;
+      const pivotX = rect
+        ? e.clientX - rect.left
+        : (containerSize.width || 1200) / 2;
+      const pivotY = rect
+        ? e.clientY - rect.top
+        : (containerSize.height || 800) / 2;
 
       const factor = Math.exp(-e.deltaY * 0.0015);
 
@@ -732,11 +750,13 @@ export default function FamilyTree({
       const viewportW =
         containerSize.width > 0
           ? containerSize.width
-          : el?.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 1200);
+          : el?.clientWidth ||
+            (typeof window !== "undefined" ? window.innerWidth : 1200);
       const viewportH =
         containerSize.height > 0
           ? containerSize.height
-          : el?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 800);
+          : el?.clientHeight ||
+            (typeof window !== "undefined" ? window.innerHeight : 800);
 
       // Pivot is the center of the current screen view
       const pivotX = viewportW / 2;
@@ -771,11 +791,13 @@ export default function FamilyTree({
     const viewportW =
       containerSize.width > 0
         ? containerSize.width
-        : el?.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 1200);
+        : el?.clientWidth ||
+          (typeof window !== "undefined" ? window.innerWidth : 1200);
     const viewportH =
       containerSize.height > 0
         ? containerSize.height
-        : el?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 800);
+        : el?.clientHeight ||
+          (typeof window !== "undefined" ? window.innerHeight : 800);
 
     const padding = 80;
     const availableW = Math.max(120, viewportW - padding * 2);
@@ -809,11 +831,13 @@ export default function FamilyTree({
       const viewportW =
         containerSize.width > 0
           ? containerSize.width
-          : el?.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 1200);
+          : el?.clientWidth ||
+            (typeof window !== "undefined" ? window.innerWidth : 1200);
       const viewportH =
         containerSize.height > 0
           ? containerSize.height
-          : el?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 800);
+          : el?.clientHeight ||
+            (typeof window !== "undefined" ? window.innerHeight : 800);
 
       const pivotX = viewportW / 2;
       const pivotY = viewportH / 2;
@@ -879,11 +903,13 @@ export default function FamilyTree({
       const viewportW =
         containerSize.width > 0
           ? containerSize.width
-          : el?.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 1200);
+          : el?.clientWidth ||
+            (typeof window !== "undefined" ? window.innerWidth : 1200);
       const viewportH =
         containerSize.height > 0
           ? containerSize.height
-          : el?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 800);
+          : el?.clientHeight ||
+            (typeof window !== "undefined" ? window.innerHeight : 800);
 
       const targetScale = clampScale(1.4);
 
@@ -942,13 +968,17 @@ export default function FamilyTree({
   const prepareExportSvg = useCallback(
     (scaleFactor = 2) => {
       if (!layout || !graph) return null;
-      const svgEl = containerRef.current?.querySelector("svg[data-tree-canvas='true']");
+      const svgEl = containerRef.current?.querySelector(
+        "svg[data-tree-canvas='true']",
+      );
       if (!svgEl) return null;
 
       const clone = svgEl.cloneNode(true) as SVGSVGElement;
 
       // Clean interactive expand buttons from export SVG so output is pristine
-      clone.querySelectorAll("[data-tree-expand-btn]").forEach((btn) => btn.remove());
+      clone
+        .querySelectorAll("[data-tree-expand-btn]")
+        .forEach((btn) => btn.remove());
 
       // 1. Reset root export group transform so whole tree is rendered from (0,0)
       const g = clone.querySelector("[data-export-root]") as SVGGElement | null;
@@ -974,7 +1004,10 @@ export default function FamilyTree({
         scale = Math.min(scale, maxDim / layout.viewH);
       }
       if (layout.viewW * layout.viewH * scale * scale > maxArea) {
-        scale = Math.min(scale, Math.sqrt(maxArea / (layout.viewW * layout.viewH)));
+        scale = Math.min(
+          scale,
+          Math.sqrt(maxArea / (layout.viewW * layout.viewH)),
+        );
       }
       scale = Math.max(1, scale);
 
@@ -985,26 +1018,45 @@ export default function FamilyTree({
       clone.setAttribute("height", String(safeHeight));
 
       // 4. Safe dark background rect insertion using createElementNS
-      const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      const bgRect = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "rect",
+      );
       bgRect.setAttribute("width", "100%");
       bgRect.setAttribute("height", "100%");
       bgRect.setAttribute("fill", "#0a0e26");
       clone.insertBefore(bgRect, clone.firstChild);
 
       // 5. Add an aesthetic header banner in the top margin
-      const focusNode = graph.nodes.find((n) => n.id === (localFocusId || focusId));
+      const focusNode = graph.nodes.find(
+        (n) => n.id === (localFocusId || focusId),
+      );
       const personName = focusNode
         ? fullName(focusNode.person, lang)
         : lang === "hi"
         ? "चंदोरा परिवार"
         : "Chandora Family";
-      const cleanSlug = personName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const baseFilename = cleanSlug ? `family-tree-${cleanSlug}` : `family-tree-${focusId}`;
+      const cleanSlug = personName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const baseFilename = cleanSlug
+        ? `family-tree-${cleanSlug}`
+        : `family-tree-${focusId}`;
 
-      const titleGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      titleGroup.setAttribute("transform", `translate(${Math.round(layout.viewW / 2)}, 75)`);
+      const titleGroup = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "g",
+      );
+      titleGroup.setAttribute(
+        "transform",
+        `translate(${Math.round(layout.viewW / 2)}, 75)`,
+      );
 
-      const titleText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const titleText = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "text",
+      );
       titleText.setAttribute("text-anchor", "middle");
       titleText.setAttribute("font-family", "'Source Serif 4', Georgia, serif");
       titleText.setAttribute("font-size", "26");
@@ -1013,7 +1065,10 @@ export default function FamilyTree({
       titleText.textContent = "Chandora Family Tree";
       titleGroup.appendChild(titleText);
 
-      const subText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const subText = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "text",
+      );
       subText.setAttribute("y", "26");
       subText.setAttribute("text-anchor", "middle");
       subText.setAttribute("font-family", "'Inter', system-ui, sans-serif");
@@ -1030,9 +1085,16 @@ export default function FamilyTree({
 
       // 7. Font resolution: CRITICAL - replace CSS variables with clean SINGLE-QUOTED font stacks
       // Never allow unescaped double quotes inside XML attribute values!
-      const rootStyles = typeof window !== "undefined" ? getComputedStyle(document.documentElement) : null;
-      let displayFont = rootStyles?.getPropertyValue("--font-display").trim() || "'Source Serif 4', Georgia, serif";
-      let bodyFont = rootStyles?.getPropertyValue("--font-body").trim() || "'Inter', system-ui, sans-serif";
+      const rootStyles =
+        typeof window !== "undefined"
+          ? getComputedStyle(document.documentElement)
+          : null;
+      let displayFont =
+        rootStyles?.getPropertyValue("--font-display").trim() ||
+        "'Source Serif 4', Georgia, serif";
+      let bodyFont =
+        rootStyles?.getPropertyValue("--font-body").trim() ||
+        "'Inter', system-ui, sans-serif";
 
       // Replace any double quotes with single quotes to prevent breaking XML attribute syntax
       displayFont = displayFont.replace(/"/g, "'");
@@ -1118,13 +1180,17 @@ export default function FamilyTree({
               canvas.toBlob(
                 (blob) => {
                   if (!blob) {
-                    console.warn("Canvas toBlob produced null, falling back to SVG");
+                    console.warn(
+                      "Canvas toBlob produced null, falling back to SVG",
+                    );
                     const svgBlob = new Blob([svgString], {
                       type: "image/svg+xml;charset=utf-8",
                     });
                     const svgUrl = URL.createObjectURL(svgBlob);
                     triggerDownload(svgUrl, `${baseFilename}.svg`);
-                    setExportNotice("Exported as SVG vector (browser memory limit).");
+                    setExportNotice(
+                      "Exported as SVG vector (browser memory limit).",
+                    );
                     setTimeout(() => setExportNotice(null), 3500);
                     resolve();
                     return;
@@ -1151,7 +1217,10 @@ export default function FamilyTree({
           img.src = dataUri;
         });
       } catch (err) {
-        console.error("PNG export encountered an issue, falling back to SVG:", err);
+        console.error(
+          "PNG export encountered an issue, falling back to SVG:",
+          err,
+        );
         // Automatic graceful fallback to SVG export so the user ALWAYS gets their download!
         try {
           const fallbackPrepared = prepareExportSvg(1);
@@ -1160,7 +1229,10 @@ export default function FamilyTree({
               type: "image/svg+xml;charset=utf-8",
             });
             const fallbackUrl = URL.createObjectURL(svgBlob);
-            triggerDownload(fallbackUrl, `${fallbackPrepared.baseFilename}.svg`);
+            triggerDownload(
+              fallbackUrl,
+              `${fallbackPrepared.baseFilename}.svg`,
+            );
             setExportNotice("Saved as SVG vector graphic.");
             setTimeout(() => setExportNotice(null), 3500);
           }
@@ -1209,17 +1281,25 @@ export default function FamilyTree({
   const cy = layout.offsetY;
 
   const relationLabel = (node: TreeNode) => {
-    if (node.id === localFocusId) return lang === "hi" ? "परिवार प्रमुख" : "Head of Family";
+    if (node.id === localFocusId)
+      return lang === "hi" ? "परिवार प्रमुख" : "Head of Family";
     const hasSpouse = graph.edges.some(
       (e) => e.type === "spouse" && (e.from === node.id || e.to === node.id),
     );
-    if (hasSpouse && node.generation === 0) return lang === "hi" ? "जीवनसाथी" : "Spouse";
+    if (hasSpouse && node.generation === 0)
+      return lang === "hi" ? "जीवनसाथी" : "Spouse";
     if (node.generation > 0) {
       return node.person.gender === "female"
-        ? (lang === "hi" ? "पुत्री" : "Daughter")
+        ? lang === "hi"
+          ? "पुत्री"
+          : "Daughter"
         : node.person.gender === "male"
-        ? (lang === "hi" ? "पुत्र" : "Son")
-        : (lang === "hi" ? "संतान" : "Child");
+        ? lang === "hi"
+          ? "पुत्र"
+          : "Son"
+        : lang === "hi"
+        ? "संतान"
+        : "Child";
     }
     if (node.generation < 0) return lang === "hi" ? "पूर्वज" : "Ancestor";
     return lang === "hi" ? "परिवारजन" : "Family member";
@@ -1324,7 +1404,9 @@ export default function FamilyTree({
                     <Maximize2 size={13} />
                     <span>Fit to Screen</span>
                   </span>
-                  <kbd className="rounded bg-black/40 px-1 py-0.5 text-[9px] text-slate-400">F</kbd>
+                  <kbd className="rounded bg-black/40 px-1 py-0.5 text-[9px] text-slate-400">
+                    F
+                  </kbd>
                 </button>
                 <div className="my-1 border-t border-white/5" />
                 {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => {
@@ -1341,7 +1423,9 @@ export default function FamilyTree({
                       }`}
                     >
                       <span>{Math.round(s * 100)}%</span>
-                      {isCurrent && <Check size={13} className="text-[#8a5cff]" />}
+                      {isCurrent && (
+                        <Check size={13} className="text-[#8a5cff]" />
+                      )}
                     </button>
                   );
                 })}
@@ -1402,7 +1486,9 @@ export default function FamilyTree({
             }
             onClick={toggleBackgroundAnimation}
             className={`tree-dock-btn h-10 w-10 rounded-xl relative ${
-              backgroundAnimation ? "text-cyan-300" : "text-slate-500 hover:text-slate-300"
+              backgroundAnimation
+                ? "text-cyan-300"
+                : "text-slate-500 hover:text-slate-300"
             }`}
           >
             <Sparkles size={17} />
@@ -1473,7 +1559,10 @@ export default function FamilyTree({
                           </div>
                         </div>
                         {isSelected && (
-                          <Check size={15} className="shrink-0 text-amber-400 ml-2" />
+                          <Check
+                            size={15}
+                            className="shrink-0 text-amber-400 ml-2"
+                          />
                         )}
                       </button>
                     );
@@ -1486,65 +1575,71 @@ export default function FamilyTree({
           <div className="mx-1 h-5 w-px bg-white/10" />
 
           {/* Export Menu Trigger */}
-          <div className="relative" ref={exportMenuRef}>
-            <button
-              aria-label="Export tree image"
-              title="Export Tree as Image (PNG / SVG)"
-              onClick={() => {
-                setExportMenuOpen((v) => !v);
-                setZoomMenuOpen(false);
-                setThemeMenuOpen(false);
-              }}
-              disabled={isExporting}
-              className="tree-dock-btn h-10 w-10 rounded-xl disabled:opacity-50"
-            >
-              {isExporting ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#8a5cff] border-t-transparent" />
-              ) : (
-                <Download size={18} />
-              )}
-            </button>
+          {isLoggedIn && isAdmin && (
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                aria-label="Export tree image"
+                title="Export Tree as Image (PNG / SVG)"
+                onClick={() => {
+                  setExportMenuOpen((v) => !v);
+                  setZoomMenuOpen(false);
+                  setThemeMenuOpen(false);
+                }}
+                disabled={isExporting}
+                className="tree-dock-btn h-10 w-10 rounded-xl disabled:opacity-50"
+              >
+                {isExporting ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#8a5cff] border-t-transparent" />
+                ) : (
+                  <Download size={18} />
+                )}
+              </button>
 
-            {exportMenuOpen && (
-              <div className="tree-popover-enter absolute bottom-12 right-0 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#0a0f21]/95 p-1.5 shadow-2xl backdrop-blur-xl">
-                <div className="px-2.5 py-1.5 border-b border-white/10 mb-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                    Export Family Tree
-                  </p>
+              {exportMenuOpen && (
+                <div className="tree-popover-enter absolute bottom-12 right-0 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#0a0f21]/95 p-1.5 shadow-2xl backdrop-blur-xl">
+                  <div className="px-2.5 py-1.5 border-b border-white/10 mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      Export Family Tree
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportMenuOpen(false);
+                      exportAsPng(2);
+                    }}
+                    disabled={isExporting}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <span className="text-base">🖼</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-white">Download PNG</p>
+                      <p className="text-[10px] text-slate-400">
+                        High-resolution 2x image
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportMenuOpen(false);
+                      exportAsSvg();
+                    }}
+                    disabled={isExporting}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <span className="text-base">📐</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-white">Download SVG</p>
+                      <p className="text-[10px] text-slate-400">
+                        Vector graphic for print
+                      </p>
+                    </div>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setExportMenuOpen(false);
-                    exportAsPng(2);
-                  }}
-                  disabled={isExporting}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
-                >
-                  <span className="text-base">🖼</span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-white">Download PNG</p>
-                    <p className="text-[10px] text-slate-400">High-resolution 2x image</p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setExportMenuOpen(false);
-                    exportAsSvg();
-                  }}
-                  disabled={isExporting}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
-                >
-                  <span className="text-base">📐</span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-white">Download SVG</p>
-                    <p className="text-[10px] text-slate-400">Vector graphic for print</p>
-                  </div>
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1591,13 +1686,7 @@ export default function FamilyTree({
               floodOpacity="0.38"
             />
           </filter>
-          <filter
-            id="focusAura"
-            x="-40%"
-            y="-40%"
-            width="180%"
-            height="180%"
-          >
+          <filter id="focusAura" x="-40%" y="-40%" width="180%" height="180%">
             <feDropShadow
               dx="0"
               dy="4"
@@ -1731,68 +1820,70 @@ export default function FamilyTree({
                     }}
                   >
                     <rect
-                    width={CARD_W}
-                    height={CARD_H}
-                    rx={15}
-                    fill="url(#lineageCard)"
-                    stroke={accent}
-                    strokeWidth={isFocus ? 2.4 : 1.2}
-                    filter={isFocus ? "url(#focusAura)" : "url(#lineageShadow)"}
-                    className={isFocus ? "tree-focus-card" : ""}
-                  />
+                      width={CARD_W}
+                      height={CARD_H}
+                      rx={15}
+                      fill="url(#lineageCard)"
+                      stroke={accent}
+                      strokeWidth={isFocus ? 2.4 : 1.2}
+                      filter={
+                        isFocus ? "url(#focusAura)" : "url(#lineageShadow)"
+                      }
+                      className={isFocus ? "tree-focus-card" : ""}
+                    />
 
-                  {/* Golden Crown badge for current focus person */}
-                  {isFocus && (
-                    <g transform={`translate(${CARD_W - 20}, -4)`}>
-                      <circle cx={7} cy={7} r={9} fill="#f59e0b" />
-                      <path
-                        d="M3.5 9.5 L4.5 5.5 L7 7.5 L9.5 5.5 L10.5 9.5 Z"
-                        fill="#0c1228"
-                      />
-                    </g>
-                  )}
+                    {/* Golden Crown badge for current focus person */}
+                    {isFocus && (
+                      <g transform={`translate(${CARD_W - 20}, -4)`}>
+                        <circle cx={7} cy={7} r={9} fill="#f59e0b" />
+                        <path
+                          d="M3.5 9.5 L4.5 5.5 L7 7.5 L9.5 5.5 L10.5 9.5 Z"
+                          fill="#0c1228"
+                        />
+                      </g>
+                    )}
 
-                  <circle
-                    cx={64}
-                    cy={0}
-                    r={17}
-                    fill={avatarFill}
-                    opacity={isFocus ? 1 : 0.98}
-                  />
-                  <text
-                    x={64}
-                    y={5}
-                    fontFamily="var(--font-body)"
-                    fontSize={11}
-                    fontWeight={700}
-                    fill={isFocus ? "#17182e" : accentText}
-                    textAnchor="middle"
-                  >
-                    {initialsFor(node)}
-                  </text>
-                  <text
-                    x={14}
-                    y={35}
-                    fontFamily="var(--font-display)"
-                    fontSize={lang === "hi" ? 11.5 : 12}
-                    fontWeight={lang === "hi" ? 600 : 500}
-                    fill="#edf1ff"
-                  >
-                    {name.length > 15 ? `${name.slice(0, 14)}…` : name}
-                  </text>
-
-                  {!isFocus && node.generation !== 0 && (
+                    <circle
+                      cx={64}
+                      cy={0}
+                      r={17}
+                      fill={avatarFill}
+                      opacity={isFocus ? 1 : 0.98}
+                    />
                     <text
-                      x={CARD_W - 12}
-                      y={18}
-                      textAnchor="end"
+                      x={64}
+                      y={5}
                       fontFamily="var(--font-body)"
-                      fontSize={8}
-                      fill="#8997bd"
+                      fontSize={11}
+                      fontWeight={700}
+                      fill={isFocus ? "#17182e" : accentText}
+                      textAnchor="middle"
                     >
-                      {lifespan(node, lang)}
+                      {initialsFor(node)}
                     </text>
-                  )}
+                    <text
+                      x={14}
+                      y={35}
+                      fontFamily="var(--font-display)"
+                      fontSize={lang === "hi" ? 11.5 : 12}
+                      fontWeight={lang === "hi" ? 600 : 500}
+                      fill="#edf1ff"
+                    >
+                      {name.length > 15 ? `${name.slice(0, 14)}…` : name}
+                    </text>
+
+                    {!isFocus && node.generation !== 0 && (
+                      <text
+                        x={CARD_W - 12}
+                        y={18}
+                        textAnchor="end"
+                        fontFamily="var(--font-body)"
+                        fontSize={8}
+                        fill="#8997bd"
+                      >
+                        {lifespan(node, lang)}
+                      </text>
+                    )}
                   </g>
 
                   {/* Top expand button: Load earlier generation (parents / ancestors) */}
@@ -1874,9 +1965,7 @@ export default function FamilyTree({
                       {/* Upward chevron */}
                       <path
                         d="M60.5 -26 L64 -29.8 L67.5 -26"
-                        stroke={
-                          expandingId === node.id ? "#ffffff" : "#c4a5ff"
-                        }
+                        stroke={expandingId === node.id ? "#ffffff" : "#c4a5ff"}
                         strokeWidth={1.7}
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -1959,18 +2048,14 @@ export default function FamilyTree({
                         cy={CARD_H + 11}
                         r={9.5}
                         fill="#0c1229"
-                        stroke={
-                          expandingId === node.id ? "#93c5fd" : "#38bdf8"
-                        }
+                        stroke={expandingId === node.id ? "#93c5fd" : "#38bdf8"}
                         strokeWidth={1.5}
                         className="transition-all duration-150 group-hover/desc:stroke-amber-300 group-hover/desc:fill-[#14234c]"
                       />
                       {/* Downward chevron */}
                       <path
                         d="M60.5 57 L64 60.8 L67.5 57"
-                        stroke={
-                          expandingId === node.id ? "#ffffff" : "#7dd3fc"
-                        }
+                        stroke={expandingId === node.id ? "#ffffff" : "#7dd3fc"}
                         strokeWidth={1.7}
                         strokeLinecap="round"
                         strokeLinejoin="round"

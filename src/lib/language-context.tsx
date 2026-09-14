@@ -92,7 +92,8 @@ const translations: Record<Language, Record<string, string>> = {
     "form.middleName": "Middle Name",
     "form.lastName": "Last Name",
     "form.hindiName": "Hindi Name (हिंदी में नाम)",
-    "form.hindiNameHelp": "Shown when viewer switches to Hindi language. Defaults to English name if left empty.",
+    "form.hindiNameHelp":
+      "Shown when viewer switches to Hindi language. Defaults to English name if left empty.",
     "form.autoTranslate": "Auto-Translate to Hindi",
     "form.translating": "Translating...",
     "form.maidenName": "Maiden Name",
@@ -108,7 +109,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Relationship Finder
     "rel.title": "Family Relationship Finder",
-    "rel.subtitle": "Calculate exact kinship between any two family members in the Chandora lineage.",
+    "rel.subtitle":
+      "Calculate exact kinship between any two family members in the Chandora lineage.",
     "rel.person1": "First Person",
     "rel.person2": "Second Person",
     "rel.calculate": "Calculate Relationship",
@@ -118,7 +120,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Bulk translation modal
     "trans.title": "Hindi Name Translator",
-    "trans.desc": "Automatically transliterate and translate English names into Hindi Devanagari script for all family members.",
+    "trans.desc":
+      "Automatically transliterate and translate English names into Hindi Devanagari script for all family members.",
     "trans.button": "Start Translating Database",
     "trans.progress": "Translating records...",
     "trans.done": "Names successfully translated & saved to database!",
@@ -205,7 +208,8 @@ const translations: Record<Language, Record<string, string>> = {
     "form.middleName": "मध्य नाम (Middle Name)",
     "form.lastName": "उपनाम / कुलनाम (Last Name)",
     "form.hindiName": "हिंदी नाम (देवनागरी में)",
-    "form.hindiNameHelp": "हिंदी भाषा चयन करने पर यह नाम दिखाई देगा। यदि यह खाली होगा तो स्वतः अंग्रेजी नाम प्रदर्शित होगा।",
+    "form.hindiNameHelp":
+      "हिंदी भाषा चयन करने पर यह नाम दिखाई देगा। यदि यह खाली होगा तो स्वतः अंग्रेजी नाम प्रदर्शित होगा।",
     "form.autoTranslate": "अंग्रेजी से हिंदी में अनुवाद करें",
     "form.translating": "अनुवाद हो रहा है...",
     "form.maidenName": "विवाह पूर्व उपनाम",
@@ -221,7 +225,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Relationship Finder
     "rel.title": "पारिवारिक संबंध खोजक",
-    "rel.subtitle": "चंदोरा वंश-वृक्ष के किन्हीं भी दो सदस्यों के बीच सटीक नाता व पीढ़ीगत संबंध जानें।",
+    "rel.subtitle":
+      "चंदोरा वंश-वृक्ष के किन्हीं भी दो सदस्यों के बीच सटीक नाता व पीढ़ीगत संबंध जानें।",
     "rel.person1": "पहला सदस्य",
     "rel.person2": "दूसरा सदस्य",
     "rel.calculate": "संबंध जानें",
@@ -231,7 +236,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Bulk translation modal
     "trans.title": "हिंदी नाम अनुवादक",
-    "trans.desc": "सभी परिवारजनों के अंग्रेजी नामों को देवनागरी हिंदी में स्वतः अनुवाद करके डेटाबेस में सुरक्षित करें।",
+    "trans.desc":
+      "सभी परिवारजनों के अंग्रेजी नामों को देवनागरी हिंदी में स्वतः अनुवाद करके डेटाबेस में सुरक्षित करें।",
     "trans.button": "डेटाबेस का हिंदी अनुवाद शुरू करें",
     "trans.progress": "नामों का अनुवाद किया जा रहा है...",
     "trans.done": "सभी नाम सफलतापूर्वक हिंदी में अनुवादित व सुरक्षित हो गए!",
@@ -241,26 +247,26 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 const LanguageContext = createContext<LanguageContextType>({
-  lang: "en",
+  lang: "hi",
   setLang: () => {},
   toggleLang: () => {},
   t: (key: string, fallback?: string) => fallback || key,
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Language>("en");
-
-  // Load saved preference from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("lineage_lang") as Language;
-      if (saved === "en" || saved === "hi") {
-        setLangState(saved);
+  const [lang, setLangState] = useState<Language>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("lineage_lang") as Language;
+        if (saved === "en" || saved === "hi") {
+          return saved;
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
-  }, []);
+    return "en";
+  });
 
   const setLang = (newLang: Language) => {
     setLangState(newLang);

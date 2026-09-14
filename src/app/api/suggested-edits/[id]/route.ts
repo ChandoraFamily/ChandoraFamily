@@ -4,13 +4,14 @@ import { getSession } from "@/lib/auth";
 import { updatePerson } from "@/lib/db";
 import { getModelsAsync } from "@/lib/models";
 
-interface Params {
-  params: { id: string };
+interface RouteContext {
+  params: Promise<{ id: string }>;
 }
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(req: NextRequest, { params }: RouteContext) {
   try {
-    const session = getSession(req);
+    const { id } = await params;
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
@@ -24,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     const { SuggestEdit } = await getModelsAsync();
-    const edit = await SuggestEdit.findById(params.id);
+    const edit = await SuggestEdit.findById(id);
     if (!edit) {
       return NextResponse.json({ error: "Suggested edit not found." }, { status: 404 });
     }
@@ -47,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     edit.status = newStatus;
 
     await SuggestEdit.findByIdAndUpdate(
-      params.id,
+      id,
       { status: newStatus },
       { new: true },
     );

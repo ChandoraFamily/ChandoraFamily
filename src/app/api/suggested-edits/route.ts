@@ -5,7 +5,7 @@ import { getModelsAsync } from "@/lib/models";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = getSession(req);
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }

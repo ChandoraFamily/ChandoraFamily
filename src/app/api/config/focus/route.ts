@@ -36,7 +36,7 @@ export async function GET() {
 // POST /api/config/focus -> updates the default tree focus (restricted to admin or allows reset to admin)
 export async function POST(req: NextRequest) {
   try {
-    const session = getSession();
+    const session = await getSession(req);
     if (!session || session.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized. Administrator permissions required to change default tree focus." },

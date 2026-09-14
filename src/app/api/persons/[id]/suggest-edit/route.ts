@@ -2,11 +2,12 @@ export const runtime = "nodejs";
 import { getModelsAsync } from "@/lib/models";
 import { NextRequest, NextResponse } from "next/server";
 
-interface Params {
-  params: { id: string };
+interface RouteContext {
+  params: Promise<{ id: string }>;
 }
 
-export async function POST(req: NextRequest, { params }: Params) {
+export async function POST(req: NextRequest, { params }: RouteContext) {
+  const { id } = await params;
   const { submittedByName, submittedByEmail, note, changes } = await req.json();
   if (!changes || typeof changes !== "object") {
     return NextResponse.json(
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
   const { SuggestEdit } = await getModelsAsync();
   await SuggestEdit.create({
-    personId: params.id,
+    personId: id,
     submittedByName,
     submittedByEmail,
     note,

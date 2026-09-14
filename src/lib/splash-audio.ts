@@ -5,29 +5,186 @@
 // with procedural Web Audio API & Speech Synthesis fallback so audio always works without external files.
 
 let sharedAudioCtx: AudioContext | null = null;
+let masterGainNode: GainNode | null = null;
 
-function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return null;
-  if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
-    sharedAudioCtx = new AudioCtx();
-  }
-  if (sharedAudioCtx.state === "suspended") {
-    sharedAudioCtx.resume().catch(() => {});
-  }
-  return sharedAudioCtx;
-}
+const activeAudioElements = new Set<HTMLAudioElement>();
+const activeWebAudioNodes = new Set<{
+  stop?: (when?: number) => void;
+  disconnect: () => void;
+}>();
+
+let speechTimeoutId: ReturnType<typeof setTimeout> | null = null;
+let crackleTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+// function getAudioContext(): AudioContext | null {
+//   if (typeof window === "undefined") return null;
+//   const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+//   if (!AudioCtx) return null;
+//   if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
+//     sharedAudioCtx = new AudioCtx();
+//   }
+//   if (sharedAudioCtx.state === "suspended") {
+//     sharedAudioCtx.resume().catch(() => {});
+//   }
+//   return sharedAudioCtx;
+// }
 
 let activeFireSource: { stop: () => void } | null = null;
+
 let customAudioUrls: {
   chamunda?: string;
   eagle?: string;
   fire?: string;
 } = {};
 
-export function setCustomAudioUrl(type: "chamunda" | "eagle" | "fire", url: string) {
+export function setCustomAudioUrl(
+  type: "chamunda" | "eagle" | "fire",
+  url: string,
+) {
   customAudioUrls[type] = url;
+}
+
+function trackAudio(audio: HTMLAudioElement) {
+  activeAudioElements.add(audio);
+  const onDone = () => {
+    activeAudioElements.delete(audio);
+    audio.removeEventListener("ended", onDone);
+    audio.removeEventListener("error", onDone);
+  };
+  audio.addEventListener("ended", onDone);
+  audio.addEventListener("error", onDone);
+}
+
+function stopAudioElement(audio: HTMLAudioElement) {
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = "";
+    audio.load();
+  } catch {
+    // ignore
+  }
+  activeAudioElements.delete(audio);
+}
+
+function stopAllAudioElements() {
+  for (const audio of Array.from(activeAudioElements)) {
+    stopAudioElement(audio);
+  }
+  activeAudioElements.clear();
+}
+
+function trackWebAudioNode(node: {
+  stop?: (when?: number) => void;
+  disconnect: () => void;
+}) {
+  activeWebAudioNodes.add(node);
+}
+
+function stopAllWebAudioNodes() {
+  for (const node of Array.from(activeWebAudioNodes)) {
+    try {
+      if (typeof node.stop === "function") {
+        node.stop();
+      }
+      node.disconnect();
+    } catch {
+      // ignore
+    }
+  }
+  activeWebAudioNodes.clear();
+}
+
+function cancelSpeech() {
+  if (speechTimeoutId) {
+    clearTimeout(speechTimeoutId);
+    speechTimeoutId = null;
+  }
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function getAudioContext(): { ctx: AudioContext; masterGain: GainNode } | null {
+  if (typeof window === "undefined") return null;
+  const AudioCtx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext })
+      .webkitAudioContext;
+  if (!AudioCtx) return null;
+
+  if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
+    sharedAudioCtx = new AudioCtx();
+    masterGainNode = sharedAudioCtx.createGain();
+    masterGainNode.connect(sharedAudioCtx.destination);
+  } else if (!masterGainNode) {
+    masterGainNode = sharedAudioCtx.createGain();
+    masterGainNode.connect(sharedAudioCtx.destination);
+  }
+  try {
+    masterGainNode.gain.cancelScheduledValues(sharedAudioCtx.currentTime);
+    masterGainNode.gain.setValueAtTime(1, sharedAudioCtx.currentTime);
+  } catch {
+    // ignore
+  }
+
+  if (sharedAudioCtx.state === "suspended") {
+    sharedAudioCtx.resume().catch(() => {});
+  }
+
+  return { ctx: sharedAudioCtx, masterGain: masterGainNode };
+}
+
+export function stopAllSplashAudio(): void {
+  // 1. Stop fire sound
+  stopFireSound();
+
+  // 2. Stop all active HTMLAudioElement instances
+  stopAllAudioElements();
+
+  // 3. Cancel speech synthesis
+  cancelSpeech();
+
+  // 4. Stop and disconnect all active oscillators and buffer sources
+  stopAllWebAudioNodes();
+
+  // 5. Zero master gain and suspend audio context
+  if (masterGainNode && sharedAudioCtx && sharedAudioCtx.state !== "closed") {
+    try {
+      masterGainNode.gain.cancelScheduledValues(sharedAudioCtx.currentTime);
+      masterGainNode.gain.setValueAtTime(0, sharedAudioCtx.currentTime);
+    } catch {
+      // ignore
+    }
+  }
+  if (sharedAudioCtx && sharedAudioCtx.state === "running") {
+    try {
+      sharedAudioCtx.suspend().catch(() => {});
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export const stopAllAudio = stopAllSplashAudio;
+
+export function stopFireSound(): void {
+  if (activeFireSource) {
+    try {
+      activeFireSource.stop();
+    } catch {
+      // ignore
+    }
+    activeFireSource = null;
+  }
+  if (crackleTimeoutId) {
+    clearTimeout(crackleTimeoutId);
+    crackleTimeoutId = null;
+  }
 }
 
 /**
@@ -36,6 +193,8 @@ export function setCustomAudioUrl(type: "chamunda" | "eagle" | "fire", url: stri
  * If not found, synthesizes sacred temple bell harmonics + conch resonance and speaks "जय माँ चामुण्डा".
  */
 export async function playJaiMaaChamundaSound(muted = false): Promise<void> {
+  stopAllSplashAudio();
+
   if (muted || typeof window === "undefined") return;
 
   const audioFilesToTry = [
@@ -51,6 +210,7 @@ export async function playJaiMaaChamundaSound(muted = false): Promise<void> {
     try {
       const audio = new Audio(src);
       audio.volume = 0.9;
+      trackAudio(audio);
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         await playPromise;
@@ -62,16 +222,18 @@ export async function playJaiMaaChamundaSound(muted = false): Promise<void> {
   }
 
   // Fallback: Procedural Divine Temple Bells, Conch & Sacred Devotional Voice
-  const ctx = getAudioContext();
-  if (ctx) {
-    playTempleBellsAndConch(ctx);
+  const audioSetup = getAudioContext();
+  if (audioSetup) {
+    playTempleBellsAndConch(audioSetup.ctx, audioSetup.masterGain);
   }
 
   // Sacred voice chant "जय माँ चामुण्डा" using SpeechSynthesis
   if ("speechSynthesis" in window) {
     try {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance("जय माँ चामुण्डा, जय माँ चामुण्डा");
+      const utterance = new SpeechSynthesisUtterance(
+        "जय माँ चामुण्डा, जय माँ चामुण्डा",
+      );
       utterance.lang = "hi-IN";
       utterance.rate = 0.85;
       utterance.pitch = 1.05;
@@ -79,11 +241,13 @@ export async function playJaiMaaChamundaSound(muted = false): Promise<void> {
 
       // Select Hindi voice if available
       const voices = window.speechSynthesis.getVoices();
-      const hiVoice = voices.find((v) => v.lang.startsWith("hi") || v.lang.includes("Hindi"));
+      const hiVoice = voices.find(
+        (v) => v.lang.startsWith("hi") || v.lang.includes("Hindi"),
+      );
       if (hiVoice) {
         utterance.voice = hiVoice;
       }
-      setTimeout(() => {
+      speechTimeoutId = setTimeout(() => {
         window.speechSynthesis.speak(utterance);
       }, 350);
     } catch {
@@ -95,7 +259,10 @@ export async function playJaiMaaChamundaSound(muted = false): Promise<void> {
 /**
  * Synthesizes sacred temple bells (Ghanṭā) and divine deep conch (Shankha) resonance
  */
-function playTempleBellsAndConch(ctx: AudioContext) {
+function playTempleBellsAndConch(
+  ctx: AudioContext,
+  destination: GainNode | AudioNode,
+) {
   const now = ctx.currentTime;
 
   // Deep resonant drone (OM / Conch vibration)
@@ -107,9 +274,10 @@ function playTempleBellsAndConch(ctx: AudioContext) {
   droneGain.gain.linearRampToValueAtTime(0.35, now + 0.5);
   droneGain.gain.exponentialRampToValueAtTime(0.001, now + 4.2);
   droneOsc.connect(droneGain);
-  droneGain.connect(ctx.destination);
+  droneGain.connect(destination);
   droneOsc.start(now);
   droneOsc.stop(now + 4.5);
+  trackWebAudioNode(droneOsc);
 
   // Temple Bell Chimes with multi-harmonic overtone series (Ghanṭā)
   const bellFrequencies = [528, 1056, 1584, 2112, 2640];
@@ -121,17 +289,24 @@ function playTempleBellsAndConch(ctx: AudioContext) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = i === 0 ? "sine" : "triangle";
-      osc.frequency.setValueAtTime(freq * (strikeIdx === 1 ? 1.25 : 1), strikeTime);
+      osc.frequency.setValueAtTime(
+        freq * (strikeIdx === 1 ? 1.25 : 1),
+        strikeTime,
+      );
 
       const amp = (0.28 / (i + 1)) * (strikeIdx === 0 ? 1 : 0.7);
       gain.gain.setValueAtTime(0, strikeTime);
       gain.gain.linearRampToValueAtTime(amp, strikeTime + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, strikeTime + bellDampings[i]);
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        strikeTime + bellDampings[i],
+      );
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(destination);
       osc.start(strikeTime);
       osc.stop(strikeTime + bellDampings[i] + 0.1);
+      trackWebAudioNode(osc);
     });
   });
 }
@@ -141,6 +316,7 @@ function playTempleBellsAndConch(ctx: AudioContext) {
  * Attempts file first, then synthesizes authentic eagle raptor cry.
  */
 export async function playEagleChirpSound(muted = false): Promise<void> {
+  stopAllSplashAudio();
   if (muted || typeof window === "undefined") return;
 
   const audioFilesToTry = [
@@ -155,6 +331,7 @@ export async function playEagleChirpSound(muted = false): Promise<void> {
     try {
       const audio = new Audio(src);
       audio.volume = 0.85;
+      trackAudio(audio);
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         await playPromise;
@@ -166,9 +343,10 @@ export async function playEagleChirpSound(muted = false): Promise<void> {
   }
 
   // Procedural Eagle Screech Synthesis via Web Audio API
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  const audioSetup = getAudioContext();
+  if (!audioSetup) return;
 
+  const { ctx, masterGain } = audioSetup;
   const now = ctx.currentTime;
 
   // A raptor cry is composed of an initial sharp rising attack followed by a downward rasping scream with FM vibrato
@@ -203,11 +381,14 @@ export async function playEagleChirpSound(muted = false): Promise<void> {
     vibrato.start(start);
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterGain);
 
     osc.start(start);
     osc.stop(start + 0.44);
     vibrato.stop(start + 0.44);
+
+    trackWebAudioNode(osc);
+    trackWebAudioNode(vibrato);
   });
 }
 
@@ -216,7 +397,7 @@ export async function playEagleChirpSound(muted = false): Promise<void> {
  * Loops while the Sacred Fire stage is active.
  */
 export function startFireSound(muted = false): { stop: () => void } {
-  stopFireSound();
+  stopAllSplashAudio();
 
   if (muted || typeof window === "undefined") {
     return { stop: () => {} };
@@ -229,39 +410,44 @@ export function startFireSound(muted = false): { stop: () => void } {
     "/audio/fire-crackle.mp3",
   ].filter(Boolean) as string[];
 
-  let audioElement: HTMLAudioElement | null = null;
+  let currentFireAudio: HTMLAudioElement | null = null;
 
   for (const src of audioFilesToTry) {
     try {
       const audio = new Audio(src);
       audio.loop = true;
       audio.volume = 0.75;
-      audio.play().then(() => {
-        audioElement = audio;
-      }).catch(() => {});
-      if (audioElement) break;
+      currentFireAudio = audio;
+      audio.play().catch(() => {
+        if (currentFireAudio === audio) {
+          stopAudioElement(audio);
+          currentFireAudio = null;
+        }
+      });
+      break;
     } catch {
       // Continue
     }
   }
 
-  if (audioElement) {
+  if (currentFireAudio) {
+    const fireAudioRef = currentFireAudio;
+
     activeFireSource = {
       stop: () => {
-        if (audioElement) {
-          audioElement.pause();
-          audioElement.currentTime = 0;
-          audioElement = null;
-        }
+        stopAudioElement(fireAudioRef);
+
+        activeFireSource = null;
       },
     };
     return activeFireSource;
   }
 
   // Procedural Web Audio Burning Fire & Crackle Generator
-  const ctx = getAudioContext();
-  if (!ctx) return { stop: () => {} };
+  const audioSetup = getAudioContext();
+  if (!audioSetup) return { stop: () => {} };
 
+  const { ctx, masterGain } = audioSetup;
   let isRunning = true;
   const now = ctx.currentTime;
 
@@ -288,11 +474,11 @@ export function startFireSound(muted = false): { stop: () => void } {
 
   rumbleSrc.connect(rumbleFilter);
   rumbleFilter.connect(rumbleGain);
-  rumbleGain.connect(ctx.destination);
+  rumbleGain.connect(masterGain);
   rumbleSrc.start(now);
+  trackWebAudioNode(rumbleSrc);
 
   // 2. Continuous crackles and wood pops using random short bursts
-  let crackleTimeoutId: NodeJS.Timeout | null = null;
 
   const scheduleNextPop = () => {
     if (!isRunning || !ctx || ctx.state === "closed") return;
@@ -300,7 +486,7 @@ export function startFireSound(muted = false): { stop: () => void } {
     const delay = Math.random() * 120 + 40; // 40-160ms between snaps
     crackleTimeoutId = setTimeout(() => {
       if (!isRunning) return;
-      playWoodCrackSnap(ctx);
+      playWoodCrackSnap(ctx, masterGain);
       scheduleNextPop();
     }, delay);
   };
@@ -310,9 +496,13 @@ export function startFireSound(muted = false): { stop: () => void } {
   activeFireSource = {
     stop: () => {
       isRunning = false;
-      if (crackleTimeoutId) clearTimeout(crackleTimeoutId);
+      if (crackleTimeoutId) {
+        clearTimeout(crackleTimeoutId);
+        crackleTimeoutId = null;
+      }
       try {
-        rumbleGain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+        rumbleGain.gain.cancelScheduledValues(ctx.currentTime);
+        rumbleGain.gain.setValueAtTime(0, ctx.currentTime);
         setTimeout(() => {
           try {
             rumbleSrc.stop();
@@ -327,7 +517,10 @@ export function startFireSound(muted = false): { stop: () => void } {
   return activeFireSource;
 }
 
-function playWoodCrackSnap(ctx: AudioContext) {
+function playWoodCrackSnap(
+  ctx: AudioContext,
+  destination: GainNode | AudioNode,
+) {
   try {
     const now = ctx.currentTime;
     const isLoudSnap = Math.random() < 0.25;
@@ -337,28 +530,29 @@ function playWoodCrackSnap(ctx: AudioContext) {
 
     osc.type = "triangle";
     osc.frequency.setValueAtTime(Math.random() * 800 + 400, now);
-    osc.frequency.exponentialRampToValueAtTime(80, now + (isLoudSnap ? 0.05 : 0.025));
+    osc.frequency.exponentialRampToValueAtTime(
+      80,
+      now + (isLoudSnap ? 0.05 : 0.025),
+    );
 
     filter.type = "bandpass";
     filter.frequency.setValueAtTime(Math.random() * 2500 + 1200, now);
     filter.Q.setValueAtTime(isLoudSnap ? 6 : 3, now);
 
-    const amp = isLoudSnap ? Math.random() * 0.3 + 0.2 : Math.random() * 0.12 + 0.04;
+    const amp = isLoudSnap
+      ? Math.random() * 0.3 + 0.2
+      : Math.random() * 0.12 + 0.04;
     gain.gain.setValueAtTime(amp, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + (isLoudSnap ? 0.06 : 0.03));
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      now + (isLoudSnap ? 0.06 : 0.03),
+    );
 
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(destination);
 
     osc.start(now);
     osc.stop(now + (isLoudSnap ? 0.07 : 0.035));
   } catch {}
-}
-
-export function stopFireSound() {
-  if (activeFireSource) {
-    activeFireSource.stop();
-    activeFireSource = null;
-  }
 }

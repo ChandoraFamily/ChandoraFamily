@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { listAllPersonsForTree, listPersons } from "@/lib/db";
 import { buildFamilyTree } from "@/lib/tree";
 
-interface Params {
-  params: { id: string };
+interface RouteContext {
+  params: Promise<{ id: string }>;
 }
 
 // GET /api/persons/:id/tree?up=2&down=1&expandedAncestors=...&expandedDescendants=...
 // Returns a positioned graph (nodes + edges) centered on the given person,
 // ready for the FamilyTree component to render.
-export async function GET(req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: RouteContext) {
   try {
+    const { id } = await params;
     const up = Number(req.nextUrl.searchParams.get("up") ?? 2);
     const down = Number(req.nextUrl.searchParams.get("down") ?? 1);
     const expandAncestors =
@@ -27,14 +28,14 @@ export async function GET(req: NextRequest, { params }: Params) {
       : [];
 
     const persons = await listAllPersonsForTree();
-    const focus = persons.find((p) => p.id === params.id);
+    const focus = persons.find((p) => p.id === id);
     if (!focus) {
       return NextResponse.json({ error: "Person not found." }, { status: 404 });
     }
 
     const graph = buildFamilyTree(
       persons,
-      params.id,
+      id,
       up,
       down,
       expandAncestors,
@@ -50,8 +51,9 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 // POST /api/persons/:id/tree
 // Body: { up, down, expandAncestors, expandedAncestors, expandedDescendants }
-export async function POST(req: NextRequest, { params }: Params) {
+export async function POST(req: NextRequest, { params }: RouteContext) {
   try {
+    const { id } = await params;
     const body = await req.json().catch(() => ({}));
     const up = Number(body.up ?? 2);
     const down = Number(body.down ?? 1);
@@ -64,14 +66,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       : [];
 
     const persons = await listAllPersonsForTree();
-    const focus = persons.find((p) => p.id === params.id);
+    const focus = persons.find((p) => p.id === id);
     if (!focus) {
       return NextResponse.json({ error: "Person not found." }, { status: 404 });
     }
 
     const graph = buildFamilyTree(
       persons,
-      params.id,
+      id,
       up,
       down,
       expandAncestors,

@@ -4,7 +4,7 @@ import { getSession, hashPassword } from "@/lib/auth";
 import { getModelsAsync } from "@/lib/models";
 
 export async function POST(req: NextRequest) {
-  const session = getSession();
+  const session = await getSession(req);
   if (!session) {
     return NextResponse.json(
       { error: "You must be logged in to create a user." },

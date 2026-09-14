@@ -6,6 +6,7 @@ import {
   playEagleChirpSound,
   startFireSound,
   stopFireSound,
+  stopAllSplashAudio,
   setCustomAudioUrl,
 } from "@/lib/splash-audio";
 
@@ -244,52 +245,57 @@ export default function TreeLoadingSplash({
 
   // Keep live references
   const isLoadedRef = useRef(isLoaded);
-  isLoadedRef.current = isLoaded;
-
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-
   const currentStageRef = useRef(currentStage);
-  currentStageRef.current = currentStage;
-
   const isPlayingRef = useRef(isPlaying);
-  isPlayingRef.current = isPlaying;
-
   const isExitingRef = useRef(isExiting);
-  isExitingRef.current = isExiting;
-
   const isMutedRef = useRef(isMuted);
-  isMutedRef.current = isMuted;
+
+  useEffect(() => {
+    isLoadedRef.current = isLoaded;
+    onCompleteRef.current = onComplete;
+    currentStageRef.current = currentStage;
+    isPlayingRef.current = isPlaying;
+    isExitingRef.current = isExiting;
+    isMutedRef.current = isMuted;
+  }, [isLoaded, onComplete, currentStage, isPlaying, isExiting, isMuted]);
+
+  useEffect(() => {
+    return () => {
+      stopAllSplashAudio();
+    };
+  }, []);
 
   const handleFinishAndEnter = () => {
     if (isExitingRef.current) return;
     setIsExiting(true);
     stopFireSound();
+    stopAllSplashAudio();
     setTimeout(() => {
+      stopAllSplashAudio();
       onCompleteRef.current();
     }, 450);
   };
 
   // Sound triggering on stage change
   useEffect(() => {
-    if (isExiting) return;
+    if (isExiting) {
+      stopAllSplashAudio();
+      return;
+    }
 
     if (currentStage === 1) {
-      stopFireSound();
       playJaiMaaChamundaSound(isMuted);
     } else if (currentStage === 2) {
-      stopFireSound();
       playEagleChirpSound(isMuted);
     } else if (currentStage === 3) {
       startFireSound(isMuted);
     } else {
-      stopFireSound();
+      stopAllSplashAudio();
     }
 
     return () => {
-      if (currentStage === 3) {
-        stopFireSound();
-      }
+      stopAllSplashAudio();
     };
   }, [currentStage, isMuted, isExiting]);
 
@@ -332,7 +338,7 @@ export default function TreeLoadingSplash({
     animId = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(animId);
-      stopFireSound();
+      stopAllSplashAudio();
     };
   }, []);
 
@@ -359,7 +365,7 @@ export default function TreeLoadingSplash({
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
     if (nextMuted) {
-      stopFireSound();
+      stopAllSplashAudio();
     } else {
       if (currentStage === 1) playJaiMaaChamundaSound(false);
       else if (currentStage === 2) playEagleChirpSound(false);

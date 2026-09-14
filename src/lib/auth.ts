@@ -21,9 +21,10 @@ export function signSession(payload: SessionPayload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
 }
 
-export function setSessionCookie(token: string) {
+export async function setSessionCookie(token: string) {
   try {
-    cookies().set(COOKIE_NAME, token, {
+    const cookieStore = await cookies();
+    cookieStore.set(COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: "none",
       secure: true,
@@ -35,19 +36,23 @@ export function setSessionCookie(token: string) {
   }
 }
 
-export function clearSessionCookie() {
+export async function clearSessionCookie() {
   try {
-    cookies().delete(COOKIE_NAME);
+    const cookieStore = await cookies();
+    cookieStore.delete(COOKIE_NAME);
   } catch {}
 }
 
-export function getSession(req?: Request): SessionPayload | null {
+export async function getSession(req?: Request): Promise<SessionPayload | null> {
   let token: string | undefined;
 
   // 1. Check Authorization header first (most reliable inside iframes)
   try {
-    const authHeader =
-      req?.headers.get("authorization") || headers().get("authorization");
+    let authHeader = req?.headers.get("authorization");
+    if (!authHeader) {
+      const headerStore = await headers();
+      authHeader = headerStore.get("authorization");
+    }
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7).trim();
     }
@@ -69,7 +74,8 @@ export function getSession(req?: Request): SessionPayload | null {
   // 3. Fallback to cookies() from next/headers
   if (!token) {
     try {
-      token = cookies().get(COOKIE_NAME)?.value;
+      const cookieStore = await cookies();
+      token = cookieStore.get(COOKIE_NAME)?.value;
     } catch {}
   }
 

@@ -4,7 +4,7 @@ import { getModels } from "@/lib/models";
 import { getSession, signSession, setSessionCookie } from "@/lib/auth";
 
 export async function PATCH(req: NextRequest) {
-  const session = getSession();
+  const session = await getSession(req);
   if (!session)
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest) {
     name: user.name,
     role: user.role,
   });
-  setSessionCookie(token);
+  await setSessionCookie(token);
 
   return NextResponse.json({
     data: {

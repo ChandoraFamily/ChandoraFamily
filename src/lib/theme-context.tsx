@@ -185,23 +185,31 @@ const THEME_STORAGE_KEY = "lineage_app_theme";
 const BG_ANIM_STORAGE_KEY = "lineage_app_bg_anim";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeId>("midnight");
-  const [backgroundAnimation, setBackgroundAnimationState] = useState<boolean>(true);
+  const [theme, setThemeState] = useState<ThemeId>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId;
+        if (savedTheme && THEMES[savedTheme]) return savedTheme;
+      } catch {
+        // ignore
+      }
+    }
+    return "midnight";
+  });
+  const [backgroundAnimation, setBackgroundAnimationState] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedAnim = localStorage.getItem(BG_ANIM_STORAGE_KEY);
+        if (savedAnim !== null) return savedAnim === "true";
+      } catch {
+        // ignore
+      }
+    }
+    return true;
+  });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    try {
-      const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId;
-      if (savedTheme && THEMES[savedTheme]) {
-        setThemeState(savedTheme);
-      }
-      const savedAnim = localStorage.getItem(BG_ANIM_STORAGE_KEY);
-      if (savedAnim !== null) {
-        setBackgroundAnimationState(savedAnim === "true");
-      }
-    } catch {
-      // ignore localStorage errors
-    }
     setMounted(true);
   }, []);
 

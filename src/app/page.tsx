@@ -12,6 +12,7 @@ import ContactForm from "@/components/ContactForm";
 import RelationshipFinder from "@/components/RelationshipFinder";
 import ProfileSettings from "@/components/ProfileSettings";
 import TreeLoadingSplash from "@/components/TreeLoadingSplash";
+import { stopAllSplashAudio } from "@/lib/splash-audio";
 import HindiTranslateModal from "@/components/HindiTranslateModal";
 import { useLanguage } from "@/lib/language-context";
 import { useTheme, THEMES } from "@/lib/theme-context";
@@ -224,7 +225,10 @@ export default function HomePage() {
             setPageSplashError(null);
             setRefreshKey((k) => k + 1);
           }}
-          onComplete={() => setIsPageSplashComplete(true)}
+          onComplete={() => {
+            stopAllSplashAudio();
+            setIsPageSplashComplete(true);
+          }}
         />
       )}
       <header
@@ -368,15 +372,17 @@ export default function HomePage() {
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowTranslateModal(true)}
-            className="lineage-header-button whitespace-nowrap flex items-center gap-1.5 text-amber-300 border-amber-500/30 hover:border-amber-400/70 hover:bg-amber-500/10 transition"
-            title="Translate family names to Hindi Devanagari and save to database"
-          >
-            <span className="text-sm">🇮🇳</span>
-            <span>{lang === "hi" ? "हिंदी नाम अनुवाद" : "Hindi Names"}</span>
-          </button>
+          {isLoggedIn && isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowTranslateModal(true)}
+              className="lineage-header-button whitespace-nowrap flex items-center gap-1.5 text-amber-300 border-amber-500/30 hover:border-amber-400/70 hover:bg-amber-500/10 transition"
+              title="Translate family names to Hindi Devanagari and save to database"
+            >
+              <span className="text-sm">🇮🇳</span>
+              <span>{lang === "hi" ? "हिंदी नाम अनुवाद" : "Hindi Names"}</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -892,6 +898,7 @@ export default function HomePage() {
               key={`${focusId}-${refreshKey}`}
               focusId={focusId}
               isAdmin={isAdmin}
+              isLoggedIn={isLoggedIn}
               onSelectPerson={(id) => setSelectedId(id)}
               onTreeLoaded={handleTreeLoaded}
               onFocusAdmin={handleFocusAdmin}

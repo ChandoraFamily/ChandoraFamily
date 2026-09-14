@@ -3,13 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getModelsAsync } from "@/lib/models";
 
-interface Params {
-  params: { id: string };
+interface RouteContext {
+  params: Promise<{ id: string }>;
 }
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(req: NextRequest, { params }: RouteContext) {
   try {
-    const session = getSession(req);
+    const { id } = await params;
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
@@ -24,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const { ContactMessage } = await getModelsAsync();
     const updated = await ContactMessage.findByIdAndUpdate(
-      params.id,
+      id,
       { status },
       { new: true },
     );
@@ -45,15 +46,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: RouteContext) {
   try {
-    const session = getSession(req);
+    const { id } = await params;
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     const { ContactMessage } = await getModelsAsync();
-    const deleted = await ContactMessage.findByIdAndDelete(params.id);
+    const deleted = await ContactMessage.findByIdAndDelete(id);
 
     if (!deleted) {
       return NextResponse.json(
@@ -62,7 +64,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       );
     }
 
-    return NextResponse.json({ ok: true, id: params.id, data: { ok: true } });
+    return NextResponse.json({ ok: true, id, data: { ok: true } });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Failed to delete message." },
