@@ -23,6 +23,7 @@ function getUserName(user: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+//user profile pictures
 function getUserProfilePicture(user: unknown) {
   if (!user || typeof user !== "object") return "";
   const data = user as Record<string, unknown>;
