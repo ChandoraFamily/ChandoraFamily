@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Person } from "@/types/person";
 import { fullName } from "@/lib/formatName";
+import { useLanguage } from "@/lib/language-context";
 
 interface PersonSearchProps {
   onSelectPerson: (personId: string) => void;
@@ -13,6 +14,7 @@ export default function PersonSearch({
   onSelectPerson,
   placeholder,
 }: PersonSearchProps) {
+  const { lang, t } = useLanguage();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Person[]>([]);
   const [open, setOpen] = useState(false);
@@ -43,8 +45,13 @@ export default function PersonSearch({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
+  const defaultPlaceholder =
+    lang === "hi"
+      ? "नाम या स्थान द्वारा खोजें…"
+      : "Search by name or place…";
+
   return (
-    <div ref={boxRef} className="relative w-full max-w-md">
+    <div ref={boxRef} className="themed-person-search relative w-full max-w-md">
       <input
         type="search"
         value={query}
@@ -53,43 +60,62 @@ export default function PersonSearch({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
-        placeholder={placeholder ?? "Search by name or place…"}
-        className="w-full rounded-card border border-ink/25 bg-parchment-light px-4 py-2.5 font-body text-sm text-ink placeholder:text-ink-faint focus-visible:outline-2 focus-visible:outline-brass"
+        placeholder={placeholder ?? defaultPlaceholder}
+        className="w-full rounded-card px-4 py-2.5 font-body text-sm focus-visible:outline-2"
       />
       {open && query.trim() && (
-        <div className="absolute z-20 mt-1.5 max-h-80 w-full overflow-y-auto rounded-card border border-ink/20 bg-parchment-light shadow-none">
+        <div className="themed-person-search-results absolute z-20 mt-1.5 max-h-80 w-full overflow-y-auto rounded-card shadow-none">
           {loading && (
-            <p className="px-4 py-3 text-sm text-ink-faint">Searching…</p>
+            <p className="themed-person-search-muted px-4 py-3 text-sm">
+              {lang === "hi" ? "खोज रहे हैं…" : "Searching…"}
+            </p>
           )}
           {!loading && results.length === 0 && (
-            <p className="px-4 py-3 text-sm text-ink-faint">
-              No one matches "{query}".
+            <p className="themed-person-search-muted px-4 py-3 text-sm">
+              {lang === "hi"
+                ? `"${query}" के लिए कोई नहीं मिला।`
+                : `No one matches "${query}".`}
             </p>
           )}
           {!loading &&
-            results.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  onSelectPerson(p.id);
-                  setOpen(false);
-                  // setQuery(`${p.firstName} ${p.middleName} ${p.lastName}`);
-                  setQuery(fullName(p));
-                }}
-                className="flex w-full flex-col items-start border-b border-ink/10 px-4 py-2.5 text-left last:border-0 hover:bg-parchment-dark"
-              >
-                <span className="font-display text-sm font-semibold text-ink">
-                  {p.firstName} &nbsp;
-                  {p?.middleName} {p?.lastName}
-                  {p.maidenName ? ` (née ${p.maidenName})` : ""}
-                </span>
-                <span className="text-xs text-ink-faint">
-                  {p.birthDate?.slice(0, 4) ?? "?"}
-                  {p.deathDate ? `–${p.deathDate.slice(0, 4)}` : ""}
-                  {p.birthPlace ? ` · ${p.birthPlace}` : ""}
-                </span>
-              </button>
-            ))}
+            results.map((p) => {
+              const displayName = fullName(p, lang);
+              const englishName = fullName(p, "en");
+
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    onSelectPerson(p.id);
+                    setOpen(false);
+                    setQuery(displayName);
+                  }}
+                  className="themed-person-search-result flex w-full flex-col items-start px-4 py-2.5 text-left last:border-0"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="themed-person-search-name font-display text-sm font-semibold">
+                      {displayName}
+                      {p.maidenName ? ` (née ${p.maidenName})` : ""}
+                    </span>
+                    {lang === "hi" && p.hindiName && (
+                      <span className="themed-person-search-muted text-xs">
+                        ({englishName})
+                      </span>
+                    )}
+                    {lang === "en" && p.hindiName && (
+                      <span className="themed-person-search-language px-1.5 py-0.5 text-[11px]">
+                        {p.hindiName}
+                      </span>
+                    )}
+                  </div>
+                  <span className="themed-person-search-muted text-xs">
+                    {p.birthDate?.slice(0, 4) ?? "?"}
+                    {p.deathDate ? `–${p.deathDate.slice(0, 4)}` : ""}
+                    {p.birthPlace ? ` · ${p.birthPlace}` : ""}
+                  </span>
+                </button>
+              );
+            })}
         </div>
       )}
     </div>

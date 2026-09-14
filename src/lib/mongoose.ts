@@ -1,13 +1,11 @@
 import mongoose from "mongoose";
 
+// CRITICAL: fail fast, don't hang requests if MongoDB is offline
 mongoose.set("bufferCommands", false);
 
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_URI_USERS = process.env.MONGODB_URI_USERS;
+const MONGODB_URI = process.env.MONGODB_URI || "";
+const MONGODB_URI_USERS = process.env.MONGODB_URI_USERS || MONGODB_URI;
 
-// Next.js hot-reloads modules in dev, which would otherwise open a new
-// connection on every request. Cache the connection on the global object
-// so it's reused across reloads.
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose | null> | null;
@@ -28,8 +26,9 @@ global._mongoose = cached;
 
 export async function dbConnect(): Promise<typeof mongoose | null> {
   if (cached.conn) return cached.conn;
-  if (!MONGODB_URI) return null;
-
+  if (!MONGODB_URI) {
+    return null;
+  }
   if (!cached.promise) {
     cached.promise = mongoose
       .connect(MONGODB_URI, {
@@ -41,10 +40,7 @@ export async function dbConnect(): Promise<typeof mongoose | null> {
         return m;
       })
       .catch((err) => {
-        console.warn(
-          "[Database] MongoDB not connected - offline fallback active:",
-          err.message,
-        );
+        console.warn("[AI Studio] MongoDB not connected — fallback active:", err.message);
         cached.isAvailable = false;
         return null;
       });
@@ -55,8 +51,9 @@ export async function dbConnect(): Promise<typeof mongoose | null> {
 
 export async function userDBConnect(): Promise<typeof mongoose | null> {
   if (cached.conn) return cached.conn;
-  if (!MONGODB_URI_USERS) return null;
-
+  if (!MONGODB_URI_USERS) {
+    return null;
+  }
   if (!cached.promise) {
     cached.promise = mongoose
       .connect(MONGODB_URI_USERS, {
@@ -68,10 +65,7 @@ export async function userDBConnect(): Promise<typeof mongoose | null> {
         return m;
       })
       .catch((err) => {
-        console.warn(
-          "[Database] User MongoDB not connected - offline fallback active:",
-          err.message,
-        );
+        console.warn("[AI Studio] User MongoDB not connected — fallback active:", err.message);
         cached.isAvailable = false;
         return null;
       });

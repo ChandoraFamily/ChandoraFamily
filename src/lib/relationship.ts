@@ -120,3 +120,131 @@ export function describeRelationship(
         : "grandparent";
   return `${higherName} is the ${grandTerm(base as any, diff - 2)} of ${lowerName}.`;
 }
+
+export interface RelativeRelationInfo {
+  relation: string;
+  relationHi: string;
+  type: "parent" | "spouse" | "child" | "sibling" | "ancestor" | "relative";
+}
+
+/**
+ * Returns the relation title of `relative` with respect to `subject`.
+ * E.g., if relative is subject's father, returns relation: "Father", relationHi: "पिता".
+ */
+export function getRelativeRelation(
+  subject: Person,
+  relative: Person,
+  allPersons: Person[] = [],
+): RelativeRelationInfo {
+  const isFemale = relative.gender === "female";
+  const isMale = relative.gender === "male";
+
+  // 1. Is relative a direct parent of subject?
+  if (subject.parentIds.includes(relative.id)) {
+    return {
+      relation: isFemale ? "Mother" : isMale ? "Father" : "Parent",
+      relationHi: isFemale ? "माता" : isMale ? "पिता" : "माता-पिता",
+      type: "parent",
+    };
+  }
+
+  // 2. Is relative a spouse of subject?
+  if (
+    subject.spouseIds.includes(relative.id) ||
+    relative.spouseIds.includes(subject.id)
+  ) {
+    return {
+      relation: isFemale ? "Wife" : isMale ? "Husband" : "Spouse",
+      relationHi: isFemale ? "पत्नी" : isMale ? "पति" : "जीवनसाथी",
+      type: "spouse",
+    };
+  }
+
+  // 3. Is relative a child of subject?
+  if (relative.parentIds.includes(subject.id)) {
+    return {
+      relation: isFemale ? "Daughter" : isMale ? "Son" : "Child",
+      relationHi: isFemale ? "पुत्री (बेटी)" : isMale ? "पुत्र (बेटा)" : "संतान",
+      type: "child",
+    };
+  }
+
+  // 4. Is relative a sibling of subject? (Shares at least one parent)
+  if (
+    subject.parentIds.length > 0 &&
+    relative.parentIds.some((pid) => subject.parentIds.includes(pid))
+  ) {
+    return {
+      relation: isFemale ? "Sister" : isMale ? "Brother" : "Sibling",
+      relationHi: isFemale ? "बहन" : isMale ? "भाई" : "सहोदर",
+      type: "sibling",
+    };
+  }
+
+  // 5. Is relative a grandparent of subject?
+  if (allPersons.length > 0 && subject.parentIds.length > 0) {
+    const parent = allPersons.find(
+      (p) =>
+        subject.parentIds.includes(p.id) && p.parentIds.includes(relative.id),
+    );
+    if (parent) {
+      const isPaternal = parent.gender === "male";
+      if (isPaternal) {
+        return {
+          relation: isMale
+            ? "Paternal Grandfather"
+            : isFemale
+            ? "Paternal Grandmother"
+            : "Grandparent",
+          relationHi: isMale
+            ? "दादा (पिता के पिता)"
+            : isFemale
+            ? "दादी (पिता की माता)"
+            : "दादा-दादी",
+          type: "ancestor",
+        };
+      } else {
+        return {
+          relation: isMale
+            ? "Maternal Grandfather"
+            : isFemale
+            ? "Maternal Grandmother"
+            : "Grandparent",
+          relationHi: isMale
+            ? "नाना (माता के पिता)"
+            : isFemale
+            ? "नानी (माता की माता)"
+            : "नाना-नानी",
+          type: "ancestor",
+        };
+      }
+    }
+  }
+
+  // 6. Is relative a grandchild of subject?
+  if (allPersons.length > 0 && relative.parentIds.length > 0) {
+    const parentOfRelative = allPersons.find(
+      (p) =>
+        relative.parentIds.includes(p.id) && p.parentIds.includes(subject.id),
+    );
+    if (parentOfRelative) {
+      return {
+        relation: isMale
+          ? "Grandson"
+          : isFemale
+          ? "Granddaughter"
+          : "Grandchild",
+        relationHi: isMale ? "पोता / नाती" : isFemale ? "पोती / नातिन" : "पौत्र / पौत्री",
+        type: "relative",
+      };
+    }
+  }
+
+  // 7. Fallback generic relative
+  return {
+    relation: "Family Relative",
+    relationHi: "परिवारजन",
+    type: "relative",
+  };
+}
+

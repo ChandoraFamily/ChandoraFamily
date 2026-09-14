@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, hashPassword } from "@/lib/auth";
-import { getModels } from "@/lib/models";
+import { getModelsAsync } from "@/lib/models";
 
 export async function POST(req: NextRequest) {
   const session = getSession();
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       { status: 422 },
     );
   }
-  const { User } = getModels();
+  const { User } = await getModelsAsync();
   const existing = await User.findOne({
     email: email.toLowerCase().trim(),
   });

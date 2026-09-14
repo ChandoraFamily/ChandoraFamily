@@ -18,7 +18,8 @@ export default function SuggestEditForm({
   const { user } = useAuth();
   const [fields, setFields] = useState({
     firstName: person.firstName,
-    lastName: person.lastName,
+    lastName: person.lastName ?? "",
+    hindiName: person.hindiName ?? "",
     birthDate: person.birthDate ?? "",
     deathDate: person.deathDate ?? "",
     birthPlace: person.birthPlace ?? "",
@@ -138,6 +139,18 @@ export default function SuggestEditForm({
             value={fields.lastName}
             onChange={(e) => set("lastName", e.target.value)}
             className={inputClass}
+          />
+        </label>
+      </div>
+
+      <div>
+        <label className="lineage-label">
+          <span className="mb-1 block text-amber-300">Hindi Name (हिंदी नाम)</span>
+          <input
+            value={fields.hindiName}
+            onChange={(e) => set("hindiName", e.target.value)}
+            placeholder="उदा. अजय कुमार चंदोरा"
+            className={`${inputClass} border-amber-500/40 text-amber-100 placeholder:text-amber-500/30`}
           />
         </label>
       </div>

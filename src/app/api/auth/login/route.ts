@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPassword, signSession, setSessionCookie } from "@/lib/auth";
-import { getModels } from "@/lib/models";
+import { getModelsAsync } from "@/lib/models";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { User } = getModels();
+  const { User } = await getModelsAsync();
   console.log("USER MODEL:", {
     modelName: User.modelName,
     collection: User.collection.name,
@@ -33,6 +33,6 @@ export async function POST(req: NextRequest) {
   });
   setSessionCookie(token);
   return NextResponse.json({
-    data: { email: user.email, name: user.name, role: user.role },
+    data: { email: user.email, name: user.name, role: user.role, token },
   });
 }

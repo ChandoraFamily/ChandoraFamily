@@ -36,12 +36,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = async () => {
     try {
-      const res = await fetch("/api/auth/me");
-      const json = await res.json();
-      if (res.ok) {
-        setUser(json.data);
-      } else {
-        setUser(null);
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("lineage_token")
+          : null;
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch("/api/auth/me", { headers });
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const json = await res.json();
+        if (res.ok && json.data) {
+          setUser(json.data);
+          return;
+        }
+      }
+      setUser(null);
+      if (res.status === 401 && token && typeof window !== "undefined") {
+        localStorage.removeItem("lineage_token");
       }
     } catch {
       setUser(null);
@@ -53,19 +66,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const json = await res.json();
-    if (!res.ok) return json.error ?? "Login failed.";
-    setUser(json.data);
-    return null;
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        return "Server returned an invalid response. Please try again.";
+      }
+      const json = await res.json();
+      if (!res.ok) return json.error ?? "Login failed.";
+
+      if (json.data?.token && typeof window !== "undefined") {
+        localStorage.setItem("lineage_token", json.data.token);
+      }
+      setUser(json.data);
+      return null;
+    } catch (err: any) {
+      return err.message || "Login request failed.";
+    }
   };
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("lineage_token");
+      }
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
     setUser(null);
   };
 

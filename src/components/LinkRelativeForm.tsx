@@ -75,7 +75,7 @@ export default function LinkRelativeForm({
     <form onSubmit={submit} className="space-y-3">
       <p className="text-xs text-ink-faint">
         Link {person.firstName} to an existing person already in the tree, by
-        their record ID — useful when a person's second parent, or a spouse, was
+        their record ID — useful when a person&apos;s second parent, or a spouse, was
         already added separately.
       </p>
 

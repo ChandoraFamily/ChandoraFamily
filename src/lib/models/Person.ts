@@ -6,6 +6,7 @@ export interface PersonDocument {
   firstName: string;
   middleName?: string;
   lastName?: string;
+  hindiName?: string;
   maidenName?: string;
   gender: Gender;
   birthDate?: string;
@@ -25,6 +26,7 @@ export const PersonSchema = new Schema<PersonDocument>(
     firstName: { type: String, required: true, trim: true },
     middleName: { type: String, trim: true },
     lastName: { type: String, trim: true },
+    hindiName: { type: String, trim: true },
     maidenName: { type: String, trim: true },
     gender: {
       type: String,
@@ -48,6 +50,7 @@ PersonSchema.index({
   firstName: "text",
   middleName: "text",
   lastName: "text",
+  hindiName: "text",
   maidenName: "text",
   birthPlace: "text",
   deathPlace: "text",

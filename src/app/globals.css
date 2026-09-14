@@ -3,8 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --font-display: "Source Serif 4", Georgia, serif;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-display: "Source Serif 4", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Devanagari", sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Devanagari", sans-serif;
+  --theme-primary: #6366f1;
+  --theme-accent: #8b5cf6;
+  --theme-accent-hover: #a78bfa;
+  --theme-surface: #121a35;
+  --theme-surface-raised: #0c132a;
+  --theme-border: #202944;
+  --theme-text: #edf1ff;
+  --theme-body: #080b20;
+  --theme-glow: rgba(99, 102, 241, 0.35);
 }
 
 html,
@@ -116,6 +125,86 @@ body {
 .lineage-search button {
   color: #9ca6c1 !important;
 }
+
+/* Theme-aware controls shared by every PersonSearch instance. */
+.themed-person-search input {
+  border: 1px solid var(--theme-border) !important;
+  background: var(--theme-surface-raised) !important;
+  color: var(--theme-text) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--theme-text) 4%, transparent);
+}
+
+.themed-person-search input::placeholder,
+.themed-person-search-muted {
+  color: color-mix(in srgb, var(--theme-text) 62%, transparent);
+}
+
+.themed-person-search input:focus-visible {
+  outline-color: var(--theme-accent);
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 3px var(--theme-glow);
+}
+
+.themed-person-search-results {
+  border: 1px solid var(--theme-border);
+  background: linear-gradient(180deg, var(--theme-surface), var(--theme-surface-raised));
+  color: var(--theme-text);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, .28);
+}
+
+.themed-person-search-result {
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 75%, transparent);
+  transition: background .15s ease;
+}
+
+.themed-person-search-result:hover {
+  background: color-mix(in srgb, var(--theme-primary) 13%, transparent);
+}
+
+.themed-person-search-name { color: var(--theme-text); }
+
+.themed-person-search-language {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--theme-primary) 17%, transparent);
+  color: color-mix(in srgb, var(--theme-text) 88%, var(--theme-primary));
+}
+
+/* Login is a modal surface, so it follows the selected board theme too. */
+.themed-login-backdrop { background: color-mix(in srgb, var(--theme-body) 80%, #000); }
+
+.themed-login-form {
+  border: 1px solid var(--theme-border);
+  background: linear-gradient(160deg, var(--theme-surface), var(--theme-surface-raised));
+  color: var(--theme-text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5), 0 0 30px var(--theme-glow);
+}
+
+.themed-login-title { color: var(--theme-text); }
+
+.themed-login-input {
+  border: 1px solid var(--theme-border);
+  background: color-mix(in srgb, var(--theme-body) 72%, var(--theme-surface-raised));
+  color: var(--theme-text);
+}
+
+.themed-login-input::placeholder { color: color-mix(in srgb, var(--theme-text) 55%, transparent); }
+.themed-login-input:focus { outline: none; border-color: var(--theme-primary); box-shadow: 0 0 0 3px var(--theme-glow); }
+
+.themed-login-submit {
+  border: 1px solid var(--theme-primary);
+  background: var(--theme-primary);
+  color: var(--theme-body);
+  font-weight: 600;
+}
+
+.themed-login-submit:hover { background: var(--theme-accent-hover); }
+
+.themed-login-cancel {
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
+}
+
+.themed-login-cancel:hover { background: color-mix(in srgb, var(--theme-primary) 13%, transparent); }
 
 /* Subtle ledger-paper texture retained for other screens. */
 .ledger-bg {
@@ -533,4 +622,130 @@ select.lineage-input {
     max-height: calc(100vh - 82px);
     overflow-y: auto;
   }
+}
+
+/* ==========================================================================
+   Family Tree Animations: Smooth Zoom, Node Expansion & Ambient Effects
+   ========================================================================== */
+
+@keyframes treeNodePopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.78);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes treeExpandRipple {
+  0% {
+    r: 9.5;
+    opacity: 0.95;
+    stroke-width: 2.2px;
+  }
+  100% {
+    r: 26;
+    opacity: 0;
+    stroke-width: 0.5px;
+  }
+}
+
+@keyframes treePathDraw {
+  0% {
+    stroke-dashoffset: 140;
+    opacity: 0.3;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes focusGlowPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.4)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.75)) drop-shadow(0 6px 18px rgba(245, 158, 11, 0.3));
+  }
+}
+
+@keyframes quickFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tree-node-card {
+  transform-box: fill-box;
+  transform-origin: center center;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
+  will-change: transform;
+}
+
+.tree-node-card:hover {
+  transform: scale(1.025);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+}
+
+.tree-node-enter {
+  animation: treeNodePopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-box: fill-box;
+  transform-origin: center center;
+}
+
+.tree-path-enter {
+  stroke-dasharray: 140;
+  animation: treePathDraw 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.tree-expand-pulse {
+  animation: treeExpandRipple 1.1s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  pointer-events: none;
+}
+
+.tree-focus-card {
+  animation: focusGlowPulse 2.8s ease-in-out infinite;
+}
+
+.tree-popover-enter {
+  animation: quickFadeUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Modern floating dock */
+.tree-glass-dock {
+  background: rgba(10, 15, 33, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.tree-dock-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #cbd5e1;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.tree-dock-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.tree-dock-btn:active {
+  transform: scale(0.94);
 }

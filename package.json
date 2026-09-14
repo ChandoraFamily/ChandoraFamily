@@ -4,7 +4,7 @@
   "private": true,
   "description": "Genealogy app with an interactive pedigree/family-tree graph, person search, and a JSON-backed REST API. Ships as a web app, and wraps into Android (Capacitor) and Windows (Electron) builds.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000 -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -16,6 +16,7 @@
     "@capacitor/clipboard": "^6.0.3",
     "bcryptjs": "2.4.3",
     "jsonwebtoken": "9.0.2",
+    "lucide-react": "^1.46.0",
     "mongoose": "8.5.0",
     "next": "14.2.5",
     "react": "18.3.1",
@@ -33,7 +34,7 @@
     "@types/react-dom": "18.3.0",
     "autoprefixer": "10.4.19",
     "concurrently": "8.2.2",
-    "electron": "^30.5.1",
+    "electron": "^44.3.0",
     "electron-builder": "24.13.3",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.5",
@@ -45,5 +46,8 @@
   },
   "engines": {
     "node": ">=18.18.0"
+  },
+  "allowScripts": {
+    "electron@44.3.0": true
   }
 }

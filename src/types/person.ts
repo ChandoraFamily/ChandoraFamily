@@ -5,6 +5,7 @@ export interface Person {
   firstName: string;
   middleName?: string;
   lastName?: string;
+  hindiName?: string; // Full name in Devanagari Hindi (e.g. "अजय कुमार चंदोरा")
   maidenName?: string;
   gender: Gender;
   birthDate?: string; // ISO date, may be partial e.g. "1932" or "1932-05"
@@ -44,6 +45,10 @@ export interface TreeNode {
   generation: number; // 0 = focal person, negative = ancestors, positive = descendants
   slot: number; // horizontal position within its generation
   isFocus: boolean;
+  hasMoreAncestors?: boolean;
+  hasMoreDescendants?: boolean;
+  unloadedAncestorsCount?: number;
+  unloadedDescendantsCount?: number;
 }
 
 export interface TreeEdge {
@@ -52,10 +57,19 @@ export interface TreeEdge {
   to: string;
 }
 
+export interface ConnectedRelative {
+  person: Person;
+  relation: string; // e.g. "Father", "Mother", "Wife", "Husband", "Son", "Daughter", "Brother", "Sister"
+  relationHi: string; // e.g. "पिता", "माता", "पत्नी", "पति", "पुत्र", "पुत्री", "भाई", "बहन"
+  type: "parent" | "spouse" | "child" | "sibling" | "ancestor" | "relative";
+}
+
 export interface FamilyTreeGraph {
   focusId: string;
   nodes: TreeNode[];
   edges: TreeEdge[];
   hasMoreAncestors: boolean;
   hasMoreDescendants: boolean;
+  expandedAncestors?: string[];
+  expandedDescendants?: string[];
 }

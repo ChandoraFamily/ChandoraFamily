@@ -12,9 +12,7 @@ const hits = new Map<string, { count: number; windowStart: number }>();
 const BAD_BOT_PATTERNS = [
   /python-requests/i,
   /scrapy/i,
-  /curl\/[\d.]+$/i,
   /wget/i,
-  /^$/, // empty user-agent
 ];
 
 export function middleware(req: NextRequest) {

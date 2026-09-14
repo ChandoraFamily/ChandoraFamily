@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPerson, updatePerson, deletePerson } from "@/lib/db";
+import { getPerson, updatePerson, deletePerson, getConnectedRelatives } from "@/lib/db";
 import type { PersonInput } from "@/types/person";
 
 interface Params {
@@ -12,7 +12,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!person) {
     return NextResponse.json({ error: "Person not found." }, { status: 404 });
   }
-  return NextResponse.json({ data: person });
+  const connected = await getConnectedRelatives(params.id);
+  return NextResponse.json({ data: person, connected });
 }
 
 // PUT /api/persons/:id -> partial update

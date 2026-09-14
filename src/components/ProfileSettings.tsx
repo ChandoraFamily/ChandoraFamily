@@ -82,6 +82,7 @@ export default function ProfileSettings({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-3">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-[#8a5cff] bg-[#111733]">
               {preview && (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={preview}
                   alt=""

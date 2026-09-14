@@ -47,7 +47,12 @@ function startServer() {
     "server.js",
   );
   serverProcess = spawn(process.execPath, [serverEntry], {
-    env: { ...process.env, PORT: String(PORT), NODE_ENV: "production" },
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      NODE_ENV: "production",
+      ELECTRON_RUN_AS_NODE: "1",
+    },
     stdio: "inherit",
   });
 }

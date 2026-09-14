@@ -15,9 +15,11 @@ import type {
 export function buildFamilyTree(
   persons: Person[],
   focusId: string,
-  upDepth = 3,
-  downDepth = 3,
+  upDepth = 2,
+  downDepth = 1,
   expandAncestorSiblings = false,
+  expandedAncestors: string[] = [],
+  expandedDescendants: string[] = [],
 ): FamilyTreeGraph {
   const byId = new Map(persons.map((p) => [p.id, p]));
   const focus = byId.get(focusId);
@@ -28,6 +30,8 @@ export function buildFamilyTree(
       edges: [],
       hasMoreAncestors: false,
       hasMoreDescendants: false,
+      expandedAncestors: [],
+      expandedDescendants: [],
     };
   }
 
@@ -79,38 +83,102 @@ export function buildFamilyTree(
     if (!person) return;
     for (const parentId of person.parentIds) {
       if (!byId.has(parentId)) continue;
-      addEdge({ type: "parent-child", from: parentId, to: id });
-      walkUp(parentId, gen - 1, depth + 1);
+      if (depth < upDepth) {
+        addEdge({ type: "parent-child", from: parentId, to: id });
+        walkUp(parentId, gen - 1, depth + 1);
+      }
     }
   };
   walkUp(focus.id, 0, 0);
 
   // Phase 2: from EVERY ancestor found above (not just the direct-line
   // child), walk ALL of their descendants down to an absolute generation
-  // cap of `downDepth` relative to the focus person. This is what surfaces
-  // siblings, cousins, and aunts/uncles alongside the direct line.
+  // cap of `downDepth` relative to the focus person.
   const downVisited = new Set<string>();
-  const walkDownFull = (id: string, gen: number) => {
-    if (downVisited.has(id)) return;
+  const walkDownFull = (id: string, gen: number, depth: number) => {
+    if (downVisited.has(id) || depth > downDepth) return;
     downVisited.add(id);
     setGen(id, gen);
     addSpouses(id, gen);
-    if (gen >= downDepth) return;
     for (const child of childrenIndex.get(id) ?? []) {
-      addEdge({ type: "parent-child", from: id, to: child.id });
-      walkDownFull(child.id, gen + 1);
+      if (depth < downDepth) {
+        addEdge({ type: "parent-child", from: id, to: child.id });
+        walkDownFull(child.id, gen + 1, depth + 1);
+      }
     }
   };
 
   if (expandAncestorSiblings) {
     for (const { id, gen } of ancestors) {
-      walkDownFull(id, gen);
+      walkDownFull(id, gen, 0);
     }
   } else {
-    walkDownFull(focus.id, 0);
+    walkDownFull(focus.id, 0, 0);
   }
 
-  // --- everything below is unchanged from before ---
+  // Phase 3: Progressive per-person ancestor expansion
+  // For each person in expandedAncestors, include their parents and parents' spouses (1 gen up)
+  const expandedAncestorsSet = new Set(expandedAncestors);
+  let changed = true;
+  let iters = 0;
+  while (changed && iters < 50) {
+    changed = false;
+    iters++;
+    for (const personId of Array.from(expandedAncestorsSet)) {
+      if (!generation.has(personId)) continue;
+      const currentGen = generation.get(personId)!;
+      const person = byId.get(personId);
+      if (!person) continue;
+      for (const parentId of person.parentIds) {
+        if (!byId.has(parentId)) continue;
+        addEdge({ type: "parent-child", from: parentId, to: personId });
+        if (!generation.has(parentId)) {
+          setGen(parentId, currentGen - 1);
+          addSpouses(parentId, currentGen - 1);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  // Phase 4: Progressive per-person descendant expansion
+  // For each person in expandedDescendants, include their children and children's spouses (1 gen down)
+  const expandedDescendantsSet = new Set(expandedDescendants);
+  changed = true;
+  iters = 0;
+  while (changed && iters < 50) {
+    changed = false;
+    iters++;
+    for (const personId of Array.from(expandedDescendantsSet)) {
+      if (!generation.has(personId)) continue;
+      const currentGen = generation.get(personId)!;
+      for (const child of childrenIndex.get(personId) ?? []) {
+        addEdge({ type: "parent-child", from: personId, to: child.id });
+        if (!generation.has(child.id)) {
+          setGen(child.id, currentGen + 1);
+          addSpouses(child.id, currentGen + 1);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  // Phase 5: Re-link any parent-child and spouse connections between all nodes visible in generation
+  for (const [id] of generation.entries()) {
+    const p = byId.get(id);
+    if (!p) continue;
+    for (const pid of p.parentIds) {
+      if (generation.has(pid)) {
+        addEdge({ type: "parent-child", from: pid, to: id });
+      }
+    }
+    for (const sid of p.spouseIds) {
+      if (generation.has(sid)) {
+        addEdge({ type: "spouse", from: id, to: sid });
+      }
+    }
+  }
+
   const byGeneration = new Map<number, string[]>();
   for (const [id, gen] of generation.entries()) {
     if (!byGeneration.has(gen)) byGeneration.set(gen, []);
@@ -139,11 +207,25 @@ export function buildFamilyTree(
       const person = byId.get(id);
       if (!person) return;
 
+      const hasMoreAncestors = (person.parentIds ?? []).some(
+        (pid) => byId.has(pid) && !generation.has(pid),
+      );
+      const hasMoreDescendants = (childrenIndex.get(id) ?? []).some(
+        (child) => !generation.has(child.id),
+      );
+      const unloadedAncestorsCount = (person.parentIds ?? []).filter(
+        (pid) => byId.has(pid) && !generation.has(pid),
+      ).length;
+      const unloadedDescendantsCount = (childrenIndex.get(id) ?? []).filter(
+        (child) => !generation.has(child.id),
+      ).length;
+
       const minimalPerson = {
         id: person.id,
         firstName: person.firstName,
         middleName: person.middleName,
         lastName: person.lastName,
+        hindiName: person.hindiName,
         gender: person.gender,
         birthDate: person.birthDate,
         deathDate: person.deathDate,
@@ -158,40 +240,29 @@ export function buildFamilyTree(
         generation: gen,
         slot,
         isFocus: id === focus.id,
+        hasMoreAncestors,
+        hasMoreDescendants,
+        unloadedAncestorsCount,
+        unloadedDescendantsCount,
       });
     });
   }
 
-  const minGen = Math.min(...generation.values());
-  const maxGen = Math.max(...generation.values());
+  const hasGlobalMoreAncestors = nodes.some((n) => n.hasMoreAncestors);
+  const hasGlobalMoreDescendants = nodes.some((n) => n.hasMoreDescendants);
 
-  const hasDeeperAncestors = Array.from(generation.entries())
-    .filter(([, gen]) => gen === minGen)
-    .some(([id]) =>
-      (byId.get(id)?.parentIds ?? []).some(
-        (pid) => byId.has(pid) && !generation.has(pid),
-      ),
-    );
-
-  const hasHiddenAncestorSiblings =
-    !expandAncestorSiblings &&
-    ancestors.some(
-      (a) => a.gen < 0 && (childrenIndex.get(a.id)?.length ?? 0) > 1,
-    );
-
-  const hasMoreDescendants = Array.from(generation.entries())
-    .filter(([, gen]) => gen === maxGen)
-    .some((entry) => {
-      const [id] = entry;
-      const children = childrenIndex.get(id) ?? [];
-      return children.some((c) => !generation.has(c.id));
-    });
+  const validNodeIds = new Set(nodes.map((n) => n.id));
+  const validEdges = edges.filter(
+    (e) => validNodeIds.has(e.from) && validNodeIds.has(e.to),
+  );
 
   return {
     focusId: focus.id,
     nodes,
-    edges,
-    hasMoreAncestors: hasDeeperAncestors || hasHiddenAncestorSiblings,
-    hasMoreDescendants,
+    edges: validEdges,
+    hasMoreAncestors: hasGlobalMoreAncestors,
+    hasMoreDescendants: hasGlobalMoreDescendants,
+    expandedAncestors,
+    expandedDescendants,
   };
 }

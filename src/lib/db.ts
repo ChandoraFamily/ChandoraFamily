@@ -1,11 +1,15 @@
+import fs from "fs";
+import path from "path";
 import { dbConnect, isMongoAvailable } from "@/lib/mongoose";
 import { PersonModel, PersonDocument } from "@/lib/models/Person";
-import type { Person, PersonInput } from "@/types/person";
-import path from "path";
-import fs from "fs";
+import type { Person, PersonInput, ConnectedRelative } from "@/types/person";
+import { getRelativeRelation } from "@/lib/relationship";
 
 declare global {
+  // eslint-disable-next-line no-var
   var _inMemoryPersons: Map<string, Person> | undefined;
+  // eslint-disable-next-line no-var
+  var _defaultFocusId: string | undefined;
 }
 
 function getInMemoryPersons(): Map<string, Person> {
@@ -43,6 +47,7 @@ function getInMemoryPersons(): Map<string, Person> {
             firstName: item.firstName || "",
             middleName: item.middleName || undefined,
             lastName: item.lastName || undefined,
+            hindiName: item.hindiName || undefined,
             maidenName: item.maidenName || undefined,
             gender: item.gender || "unknown",
             birthDate: item.birthDate || undefined,
@@ -61,7 +66,7 @@ function getInMemoryPersons(): Map<string, Person> {
       }
     }
   } catch (err) {
-    console.warn("Could not load lineage.people.json:", err);
+    console.warn("[AI Studio] Could not load lineage.people.json:", err);
   }
 
   global._inMemoryPersons = store;
@@ -76,6 +81,7 @@ function toPerson(doc: PersonDocument): Person {
     firstName: doc.firstName,
     middleName: doc.middleName,
     lastName: doc.lastName,
+    hindiName: doc.hindiName,
     maidenName: doc.maidenName,
     gender: doc.gender,
     birthDate: doc.birthDate,
@@ -104,14 +110,16 @@ export async function listPersons(
         .lean<PersonDocument[]>();
       return docs.map(toPerson);
     } catch (err) {
-      console.warn("MongoDB query failed, using in-memory store: ", err);
+      console.warn("MongoDB query failed, using in-memory store:", err);
     }
   }
+
   const store = getInMemoryPersons();
   const all = Array.from(store.values());
   all.sort((a, b) => {
-    const ln = (a.firstName || "").localeCompare(b.firstName || "");
-    return ln;
+    const ln = (a.lastName || "").localeCompare(b.lastName || "");
+    if (ln !== 0) return ln;
+    return (a.firstName || "").localeCompare(b.firstName || "");
   });
   const skip = opts.skip ?? 0;
   const limit = opts.limit ?? 50;
@@ -123,11 +131,12 @@ export async function getPerson(id: string): Promise<Person | null> {
     try {
       await dbConnect();
       const doc = await PersonModel.findById(id).lean<PersonDocument>();
-      return doc ? toPerson(doc) : null;
+      if (doc) return toPerson(doc);
     } catch (err) {
       console.warn("MongoDB getPerson failed, using in-memory store:", err);
     }
   }
+
   const store = getInMemoryPersons();
   return store.get(id) ?? null;
 }
@@ -141,6 +150,7 @@ export async function createPerson(input: PersonInput): Promise<Person> {
         firstName: input.firstName.trim(),
         middleName: input.middleName?.trim() || undefined,
         lastName: input.lastName?.trim() || undefined,
+        hindiName: input.hindiName?.trim() || undefined,
         maidenName: input.maidenName?.trim() || undefined,
         parentIds: input.parentIds ?? [],
         spouseIds: input.spouseIds ?? [],
@@ -160,6 +170,7 @@ export async function createPerson(input: PersonInput): Promise<Person> {
     firstName: input.firstName.trim(),
     middleName: input.middleName?.trim() || undefined,
     lastName: input.lastName?.trim() || undefined,
+    hindiName: input.hindiName?.trim() || undefined,
     maidenName: input.maidenName?.trim() || undefined,
     gender: input.gender,
     birthDate: input.birthDate || undefined,
@@ -228,6 +239,7 @@ export async function deletePerson(id: string): Promise<boolean> {
   if (!store.has(id)) return false;
   store.delete(id);
 
+  // Detach this person from anyone who referenced them.
   for (const person of store.values()) {
     let changed = false;
     let newParents = person.parentIds;
@@ -268,6 +280,7 @@ export async function searchPersons(
           { firstName: regex },
           { middleName: regex },
           { lastName: regex },
+          { hindiName: regex },
           { maidenName: regex },
           { birthPlace: regex },
           { deathPlace: regex },
@@ -291,6 +304,7 @@ export async function searchPersons(
       person.firstName,
       person.middleName,
       person.lastName,
+      person.hindiName,
       person.maidenName,
       person.birthPlace,
       person.deathPlace,
@@ -342,10 +356,7 @@ export async function addRelationship(
       await Promise.all([a.save(), b.save()]);
       return { ok: true };
     } catch (err) {
-      console.warn(
-        "MongoDB addRelationship failed, using in-memory store:",
-        err,
-      );
+      console.warn("MongoDB addRelationship failed, using in-memory store:", err);
     }
   }
 
@@ -397,10 +408,7 @@ export async function removeRelationship(
       await Promise.all([a.save(), b.save()]);
       return { ok: true };
     } catch (err) {
-      console.warn(
-        "MongoDB removeRelationship failed, using in-memory store:",
-        err,
-      );
+      console.warn("MongoDB removeRelationship failed, using in-memory store:", err);
     }
   }
 
@@ -434,18 +442,269 @@ export async function listAllPersonsForTree(): Promise<Person[]> {
       await dbConnect();
       const docs = await PersonModel.find()
         .select(
-          "firstName middleName lastName maidenName gender birthDate deathDate birthPlace deathPlace parentIds spouseIds createdAt updatedAt",
+          "firstName middleName lastName hindiName maidenName gender birthDate deathDate birthPlace deathPlace parentIds spouseIds createdAt updatedAt",
         )
         .lean<PersonDocument[]>();
       return docs.map(toPerson);
     } catch (err) {
-      console.warn(
-        "MongoDB listAllPersonsForTree failed, using in-memory store:",
-        err,
-      );
+      console.warn("MongoDB listAllPersonsForTree failed, using in-memory store:", err);
     }
   }
 
   const store = getInMemoryPersons();
   return Array.from(store.values());
 }
+
+/**
+ * Returns all directly connected relatives for a person:
+ * Parents, Spouses, Children, Siblings, and other close blood relatives,
+ * complete with their relationship relation title in English and Hindi.
+ */
+export async function getConnectedRelatives(
+  personId: string,
+): Promise<ConnectedRelative[]> {
+  const persons = await listAllPersonsForTree();
+  const person = persons.find((p) => p.id === personId);
+  if (!person) return [];
+
+  const results: ConnectedRelative[] = [];
+  const seenIds = new Set<string>();
+
+  // 1. Direct Parents
+  for (const parentId of person.parentIds) {
+    const parent = persons.find((p) => p.id === parentId);
+    if (parent && !seenIds.has(parent.id)) {
+      seenIds.add(parent.id);
+      const relInfo = getRelativeRelation(person, parent, persons);
+      results.push({
+        person: parent,
+        relation: relInfo.relation,
+        relationHi: relInfo.relationHi,
+        type: "parent",
+      });
+    }
+  }
+
+  // 2. Direct Spouses
+  for (const spouseId of person.spouseIds) {
+    const spouse = persons.find((p) => p.id === spouseId);
+    if (spouse && !seenIds.has(spouse.id)) {
+      seenIds.add(spouse.id);
+      const relInfo = getRelativeRelation(person, spouse, persons);
+      results.push({
+        person: spouse,
+        relation: relInfo.relation,
+        relationHi: relInfo.relationHi,
+        type: "spouse",
+      });
+    }
+  }
+
+  // Also check if anyone else has personId in their spouseIds
+  for (const p of persons) {
+    if (
+      p.id !== personId &&
+      !seenIds.has(p.id) &&
+      p.spouseIds.includes(personId)
+    ) {
+      seenIds.add(p.id);
+      const relInfo = getRelativeRelation(person, p, persons);
+      results.push({
+        person: p,
+        relation: relInfo.relation,
+        relationHi: relInfo.relationHi,
+        type: "spouse",
+      });
+    }
+  }
+
+  // 3. Children (persons where parentIds contains personId)
+  for (const p of persons) {
+    if (
+      p.id !== personId &&
+      !seenIds.has(p.id) &&
+      p.parentIds.includes(personId)
+    ) {
+      seenIds.add(p.id);
+      const relInfo = getRelativeRelation(person, p, persons);
+      results.push({
+        person: p,
+        relation: relInfo.relation,
+        relationHi: relInfo.relationHi,
+        type: "child",
+      });
+    }
+  }
+
+  // 4. Siblings (persons sharing at least one parent, and not person themselves)
+  if (person.parentIds.length > 0) {
+    for (const p of persons) {
+      if (
+        p.id !== personId &&
+        !seenIds.has(p.id) &&
+        p.parentIds.some((pid) => person.parentIds.includes(pid))
+      ) {
+        seenIds.add(p.id);
+        const relInfo = getRelativeRelation(person, p, persons);
+        results.push({
+          person: p,
+          relation: relInfo.relation,
+          relationHi: relInfo.relationHi,
+          type: "sibling",
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+export const DEFAULT_ADMIN_PERSON_ID = "6aa19ec9d59615212690b13e";
+
+export async function getAdminPerson(): Promise<Person | null> {
+  // First priority: direct lookup of known admin person ID
+  const direct = await getPerson(DEFAULT_ADMIN_PERSON_ID);
+  if (direct) return direct;
+
+  // Second priority: search in memory / DB for Ajay Kumar
+  const all = await listAllPersonsForTree();
+  const match = all.find(
+    (p) =>
+      p.firstName.toLowerCase() === "ajay" &&
+      (p.middleName?.toLowerCase() === "kumar" ||
+        p.lastName?.toLowerCase() === "chandora" ||
+        p.birthPlace?.toLowerCase() === "ganganagar"),
+  );
+  if (match) return match;
+
+  // Third priority: any person named Ajay
+  const fallbackMatch = all.find((p) => p.firstName.toLowerCase() === "ajay");
+  if (fallbackMatch) return fallbackMatch;
+
+  // Fallback to first available person
+  return all[0] ?? null;
+}
+
+export async function getDefaultFocusId(): Promise<string> {
+  if (global._defaultFocusId) {
+    const existing = await getPerson(global._defaultFocusId);
+    if (existing) return existing.id;
+  }
+
+  // Check persisted config file if present
+  try {
+    const configPath = path.join(process.cwd(), "assets", "lineage.config.json");
+    if (fs.existsSync(configPath)) {
+      const raw = fs.readFileSync(configPath, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (parsed.defaultFocusId) {
+        const p = await getPerson(parsed.defaultFocusId);
+        if (p) {
+          global._defaultFocusId = p.id;
+          return p.id;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Could not read lineage.config.json:", err);
+  }
+
+  // Next: default to admin person
+  const admin = await getAdminPerson();
+  if (admin) {
+    global._defaultFocusId = admin.id;
+    return admin.id;
+  }
+
+  // Fallback: first person from store
+  const list = await listPersons({ limit: 1 });
+  return list[0]?.id || DEFAULT_ADMIN_PERSON_ID;
+}
+
+export async function setDefaultFocusId(id: string): Promise<boolean> {
+  const p = await getPerson(id);
+  if (!p) return false;
+
+  global._defaultFocusId = id;
+  try {
+    const configPath = path.join(process.cwd(), "assets", "lineage.config.json");
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({ defaultFocusId: id, updatedAt: new Date().toISOString() }, null, 2),
+      "utf-8",
+    );
+  } catch (err) {
+    console.warn("Could not write lineage.config.json:", err);
+  }
+  return true;
+}
+
+export function saveInMemoryPersonsToFile(): boolean {
+  try {
+    const store = getInMemoryPersons();
+    const list = Array.from(store.values()).map((p) => ({
+      _id: { $oid: p.id },
+      firstName: p.firstName,
+      middleName: p.middleName,
+      lastName: p.lastName,
+      hindiName: p.hindiName,
+      maidenName: p.maidenName,
+      gender: p.gender,
+      birthDate: p.birthDate,
+      deathDate: p.deathDate,
+      birthPlace: p.birthPlace,
+      deathPlace: p.deathPlace,
+      photoUrl: p.photoUrl,
+      bio: p.bio,
+      parentIds: p.parentIds,
+      spouseIds: p.spouseIds,
+      createdAt: { $date: p.createdAt },
+      updatedAt: { $date: p.updatedAt },
+    }));
+
+    const filePath = path.join(process.cwd(), "assets", "lineage.people.json");
+    fs.writeFileSync(filePath, JSON.stringify(list, null, 2), "utf-8");
+    return true;
+  } catch (err) {
+    console.error("Failed to save lineage.people.json:", err);
+    return false;
+  }
+}
+
+export async function bulkUpdateHindiNames(
+  updates: Array<{ id: string; hindiName: string }>,
+): Promise<number> {
+  const store = getInMemoryPersons();
+  let count = 0;
+
+  for (const { id, hindiName } of updates) {
+    const existing = store.get(id);
+    if (existing) {
+      existing.hindiName = hindiName;
+      existing.updatedAt = new Date().toISOString();
+      store.set(id, existing);
+      count++;
+    }
+  }
+
+  if (isMongoAvailable()) {
+    try {
+      await dbConnect();
+      const bulkOps = updates.map(({ id, hindiName }) => ({
+        updateOne: {
+          filter: { _id: id },
+          update: { $set: { hindiName } },
+        },
+      }));
+      if (bulkOps.length > 0) {
+        await PersonModel.bulkWrite(bulkOps);
+      }
+    } catch (err) {
+      console.warn("MongoDB bulkWrite failed:", err);
+    }
+  }
+
+  saveInMemoryPersonsToFile();
+  return count;
+}
+

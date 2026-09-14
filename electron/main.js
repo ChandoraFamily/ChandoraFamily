@@ -48,6 +48,9 @@ function startProductionServer() {
       ...process.env,
       PORT: String(PROD_PORT),
       NODE_ENV: "production",
+      // In a packaged app, process.execPath is Electron.exe. This ensures
+      // the bundled Next.js server starts as Node rather than a second GUI.
+      ELECTRON_RUN_AS_NODE: "1",
     },
     stdio: "inherit",
   });

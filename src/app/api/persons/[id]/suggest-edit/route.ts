@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { getModels } from "@/lib/models";
+import { getModelsAsync } from "@/lib/models";
 import { NextRequest, NextResponse } from "next/server";
 
 interface Params {
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       { status: 422 },
     );
   }
-  const { SuggestEdit } = getModels();
+  const { SuggestEdit } = await getModelsAsync();
   await SuggestEdit.create({
     personId: params.id,
     submittedByName,
