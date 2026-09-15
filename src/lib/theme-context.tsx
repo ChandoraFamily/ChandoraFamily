@@ -185,31 +185,56 @@ const THEME_STORAGE_KEY = "lineage_app_theme";
 const BG_ANIM_STORAGE_KEY = "lineage_app_bg_anim";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeId>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId;
-        if (savedTheme && THEMES[savedTheme]) return savedTheme;
-      } catch {
-        // ignore
-      }
-    }
-    return "midnight";
-  });
-  const [backgroundAnimation, setBackgroundAnimationState] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedAnim = localStorage.getItem(BG_ANIM_STORAGE_KEY);
-        if (savedAnim !== null) return savedAnim === "true";
-      } catch {
-        // ignore
-      }
-    }
-    return true;
-  });
+  // const [theme, setThemeState] = useState<ThemeId>(() => {
+  //   if (typeof window !== "undefined") {
+  //     try {
+  //       const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId;
+  //       if (savedTheme && THEMES[savedTheme]) return savedTheme;
+  //     } catch {
+  //       // ignore
+  //     }
+  //   }
+  //   return "midnight";
+  // });
+  // const [backgroundAnimation, setBackgroundAnimationState] = useState<boolean>(
+  //   () => {
+  //     if (typeof window !== "undefined") {
+  //       try {
+  //         const savedAnim = localStorage.getItem(BG_ANIM_STORAGE_KEY);
+  //         if (savedAnim !== null) return savedAnim === "true";
+  //       } catch {
+  //         // ignore
+  //       }
+  //     }
+  //     return true;
+  //   },
+  // );
+  // const [mounted, setMounted] = useState(false);
+
+  // useEffect(() => {
+  //   setMounted(true);
+  // }, []);
+
+  const [theme, setThemeState] = useState<ThemeId>("midnight");
+  const [backgroundAnimation, setBackgroundAnimationState] =
+    useState<boolean>(true);
   const [mounted, setMounted] = useState(false);
 
+  // Read persisted values only after mount, so the first client render
+  // matches the server render exactly.
   useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId;
+      if (savedTheme && THEMES[savedTheme]) setThemeState(savedTheme);
+    } catch {
+      // ignore
+    }
+    try {
+      const savedAnim = localStorage.getItem(BG_ANIM_STORAGE_KEY);
+      if (savedAnim !== null) setBackgroundAnimationState(savedAnim === "true");
+    } catch {
+      // ignore
+    }
     setMounted(true);
   }, []);
 
@@ -240,15 +265,42 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.setAttribute("data-theme", activeTheme.id);
-      document.documentElement.style.setProperty("--theme-primary", activeTheme.primary);
-      document.documentElement.style.setProperty("--theme-accent", activeTheme.accent);
-      document.documentElement.style.setProperty("--theme-accent-hover", activeTheme.accentHover);
-      document.documentElement.style.setProperty("--theme-surface", activeTheme.cardBgStart);
-      document.documentElement.style.setProperty("--theme-surface-raised", activeTheme.cardBgEnd);
-      document.documentElement.style.setProperty("--theme-border", activeTheme.cardBorder);
-      document.documentElement.style.setProperty("--theme-text", activeTheme.cardText);
-      document.documentElement.style.setProperty("--theme-body", activeTheme.bodyBg);
-      document.documentElement.style.setProperty("--theme-glow", activeTheme.glowColor);
+      document.documentElement.style.setProperty(
+        "--theme-primary",
+        activeTheme.primary,
+      );
+      document.documentElement.style.setProperty(
+        "--theme-accent",
+        activeTheme.accent,
+      );
+      document.documentElement.style.setProperty(
+        "--theme-accent-hover",
+        activeTheme.accentHover,
+      );
+      document.documentElement.style.setProperty(
+        "--theme-surface",
+        activeTheme.cardBgStart,
+      );
+      document.documentElement.style.setProperty(
+        "--theme-surface-raised",
+        activeTheme.cardBgEnd,
+      );
+      document.documentElement.style.setProperty(
+        "--theme-border",
+        activeTheme.cardBorder,
+      );
+      document.documentElement.style.setProperty(
+        "--theme-text",
+        activeTheme.cardText,
+      );
+      document.documentElement.style.setProperty(
+        "--theme-body",
+        activeTheme.bodyBg,
+      );
+      document.documentElement.style.setProperty(
+        "--theme-glow",
+        activeTheme.glowColor,
+      );
       document.body.style.backgroundColor = activeTheme.bodyBg;
     }
   }, [activeTheme]);

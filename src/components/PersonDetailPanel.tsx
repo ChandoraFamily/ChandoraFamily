@@ -73,15 +73,35 @@ export default function PersonDetailPanel({
               if (isParent) {
                 list.push({
                   person: r,
-                  relation: r.gender === "female" ? "Mother" : r.gender === "male" ? "Father" : "Parent",
-                  relationHi: r.gender === "female" ? "माता" : r.gender === "male" ? "पिता" : "माता-पिता",
+                  relation:
+                    r.gender === "female"
+                      ? "Mother"
+                      : r.gender === "male"
+                      ? "Father"
+                      : "Parent",
+                  relationHi:
+                    r.gender === "female"
+                      ? "माता"
+                      : r.gender === "male"
+                      ? "पिता"
+                      : "माता-पिता",
                   type: "parent",
                 });
               } else if (isSpouse) {
                 list.push({
                   person: r,
-                  relation: r.gender === "female" ? "Wife" : r.gender === "male" ? "Husband" : "Spouse",
-                  relationHi: r.gender === "female" ? "पत्नी" : r.gender === "male" ? "पति" : "जीवनसाथी",
+                  relation:
+                    r.gender === "female"
+                      ? "Wife"
+                      : r.gender === "male"
+                      ? "Husband"
+                      : "Spouse",
+                  relationHi:
+                    r.gender === "female"
+                      ? "पत्नी"
+                      : r.gender === "male"
+                      ? "पति"
+                      : "जीवनसाथी",
                   type: "spouse",
                 });
               }
@@ -233,7 +253,7 @@ export default function PersonDetailPanel({
                 value={
                   [person.birthDate, person.birthPlace]
                     .filter(Boolean)
-                    .join(" · ") || "—"
+                    .join(" · ") || "N/A"
                 }
               />
               <Row
@@ -241,7 +261,7 @@ export default function PersonDetailPanel({
                 value={
                   [person.deathDate, person.deathPlace]
                     .filter(Boolean)
-                    .join(" · ") || "—"
+                    .join(" · ") || "N/A"
                 }
               />
               <Row label="Gender" value={person.gender} />

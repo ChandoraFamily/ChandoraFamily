@@ -515,20 +515,22 @@ export default function HomePage() {
                         <span>Set Current as Default Focus</span>
                       </button>
                     )}
-                    <button
-                      className="lineage-account-item"
-                      onClick={() => {
-                        setShowTranslateModal(true);
-                        setProfileMenuOpen(false);
-                      }}
-                    >
-                      <span className="lineage-account-icon">🇮🇳</span>
-                      <span>
-                        {lang === "hi"
-                          ? "हिंदी नाम अनुवाद"
-                          : "Translate Names to Hindi"}
-                      </span>
-                    </button>
+                    {isLoggedIn && isAdmin && (
+                      <button
+                        className="lineage-account-item"
+                        onClick={() => {
+                          setShowTranslateModal(true);
+                          setProfileMenuOpen(false);
+                        }}
+                      >
+                        <span className="lineage-account-icon">🇮🇳</span>
+                        <span>
+                          {lang === "hi"
+                            ? "हिंदी नाम अनुवाद"
+                            : "Translate Names to Hindi"}
+                        </span>
+                      </button>
+                    )}
                     <button
                       className="lineage-account-item"
                       onClick={() => {
@@ -686,20 +688,22 @@ export default function HomePage() {
                     <span>Set Current as Default Focus</span>
                   </button>
                 )}
-                <button
-                  className="lineage-account-item"
-                  onClick={() => {
-                    setShowTranslateModal(true);
-                    setProfileMenuOpen(false);
-                  }}
-                >
-                  <span className="lineage-account-icon">🇮🇳</span>
-                  <span>
-                    {lang === "hi"
-                      ? "हिंदी नाम अनुवाद"
-                      : "Translate Names to Hindi"}
-                  </span>
-                </button>
+                {isLoggedIn && isAdmin && (
+                  <button
+                    className="lineage-account-item"
+                    onClick={() => {
+                      setShowTranslateModal(true);
+                      setProfileMenuOpen(false);
+                    }}
+                  >
+                    <span className="lineage-account-icon">🇮🇳</span>
+                    <span>
+                      {lang === "hi"
+                        ? "हिंदी नाम अनुवाद"
+                        : "Translate Names to Hindi"}
+                    </span>
+                  </button>
+                )}
                 <button
                   className="lineage-account-item"
                   onClick={() => {
@@ -815,20 +819,22 @@ export default function HomePage() {
               </div>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button
-                onClick={() => {
-                  setShowTranslateModal(true);
-                  setMenuOpen(false);
-                }}
-                className="lineage-menu-button flex items-center gap-2 text-amber-300 border-amber-500/30 hover:bg-amber-500/10"
-              >
-                <span>🇮🇳</span>
-                <span>
-                  {lang === "hi"
-                    ? "हिंदी नाम अनुवाद"
-                    : "Translate Names to Hindi"}
-                </span>
-              </button>
+              {isLoggedIn && isAdmin && (
+                <button
+                  onClick={() => {
+                    setShowTranslateModal(true);
+                    setMenuOpen(false);
+                  }}
+                  className="lineage-menu-button flex items-center gap-2 text-amber-300 border-amber-500/30 hover:bg-amber-500/10"
+                >
+                  <span>🇮🇳</span>
+                  <span>
+                    {lang === "hi"
+                      ? "हिंदी नाम अनुवाद"
+                      : "Translate Names to Hindi"}
+                  </span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   setIsPageSplashComplete(false);

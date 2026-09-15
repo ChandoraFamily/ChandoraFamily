@@ -1872,7 +1872,7 @@ export default function FamilyTree({
                       {name.length > 15 ? `${name.slice(0, 14)}…` : name}
                     </text>
 
-                    {!isFocus && node.generation !== 0 && (
+                    {/* {!isFocus && node.generation !== 0 && (
                       <text
                         x={CARD_W - 12}
                         y={18}
@@ -1883,7 +1883,7 @@ export default function FamilyTree({
                       >
                         {lifespan(node, lang)}
                       </text>
-                    )}
+                    )} */}
                   </g>
 
                   {/* Top expand button: Load earlier generation (parents / ancestors) */}
