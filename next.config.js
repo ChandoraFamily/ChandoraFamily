@@ -2,6 +2,7 @@
 const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  allowedDevOrigins: ["192.168.1.6"],
   images: {
     // Person photos may be uploaded/stored locally or point at remote URLs.
     remotePatterns: [{ protocol: "https", hostname: "**" }],
