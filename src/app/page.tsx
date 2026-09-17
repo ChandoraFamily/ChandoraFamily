@@ -109,6 +109,23 @@ export default function HomePage() {
   const userInitials = getUserInitials(user);
   const userEmail = getUserEmail(user);
 
+  useEffect(() => {
+    if (focusId) return;
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const sharedPersonId = params.get("person");
+      if (sharedPersonId) {
+        setFocusId(sharedPersonId);
+        setSelectedId(sharedPersonId); // opens the detail panel too
+        return;
+      }
+    }
+
+    fetch("/api/config/focus");
+    // ...existing fallback logic unchanged
+  }, [focusId, refreshKey]);
+
   // Load configured focus person (defaults to Admin), falling back to first person.
   useEffect(() => {
     if (focusId) return;

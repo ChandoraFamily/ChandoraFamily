@@ -46,6 +46,8 @@ export default function PersonDetailPanel({
   const [refreshKey, setRefreshKey] = useState(0);
   const [shareCopied, setShareCopied] = useState(false);
 
+  const getShareUrl = (p: Person) => `https://chandora.in/?person=${p.id}`;
+
   const getShareText = (p: Person) => {
     const name = fullName(p, lang);
     const hindiPart = p.hindiName ? ` (${p.hindiName})` : "";
@@ -60,7 +62,9 @@ export default function PersonDetailPanel({
         ? `📜 ${p.bio.slice(0, 160)}${p.bio.length > 160 ? "..." : ""}`
         : null,
       ``,
-      `🔗 Explore the official Chandora lineage & ancestry records at https://chandora.in`,
+      `🔗 Explore the official Chandora lineage & ancestry records at {${getShareUrl(
+        p,
+      )}`,
       `#Chandora #Lineage #FamilyTree`,
     ].filter(Boolean);
     return lines.join("\n");
@@ -77,7 +81,7 @@ export default function PersonDetailPanel({
 
   const handleShareFacebook = () => {
     if (!person) return;
-    const shareUrl = "https://chandora.in/";
+    const shareUrl = getShareUrl(person);
     const name = fullName(person, lang);
     const quote = `Chandora Family Tree Record: ${name} - Explore our ancestral Chandora lineage at chandora.in`;
     const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
@@ -86,19 +90,10 @@ export default function PersonDetailPanel({
     window.open(fbUrl, "_blank", "width=600,height=500,noopener,noreferrer");
   };
 
-  const handleShareYouTube = () => {
-    if (!person) return;
-    const name = fullName(person, lang);
-    const query = `Chandora family lineage ${name}`;
-    const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(
-      query,
-    )}`;
-    window.open(ytUrl, "_blank", "noopener,noreferrer");
-  };
-
   const handleNativeShareOrCopy = async () => {
     if (!person) return;
     const text = getShareText(person);
+    const shareUrl = getShareUrl(person);
     const name = fullName(person, lang);
     if (
       typeof navigator !== "undefined" &&
@@ -108,7 +103,7 @@ export default function PersonDetailPanel({
         await navigator.share({
           title: `Chandora Family Tree: ${name}`,
           text,
-          url: "https://chandora.in/",
+          url: shareUrl,
         });
         return;
       } catch {
@@ -419,7 +414,7 @@ export default function PersonDetailPanel({
                 </button>
 
                 {/* YouTube */}
-                <button
+                {/* <button
                   type="button"
                   onClick={handleShareYouTube}
                   className="flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs font-semibold text-red-300 shadow-sm transition hover:bg-red-800/40 hover:border-red-400 hover:text-white active:scale-95 cursor-pointer"
@@ -432,7 +427,7 @@ export default function PersonDetailPanel({
                     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                   </svg>
                   <span>YouTube</span>
-                </button>
+                </button> */}
 
                 {/* Share / Copy Summary */}
                 <button
