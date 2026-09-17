@@ -28,9 +28,6 @@ type SplashAnimationStage = 1 | 2 | 3 | 4;
 
 const STAGE_DURATION_MS = 5600; // 5.6 seconds per animation stage in auto-play
 
-/* ------------------------------------------------------------------------- */
-/* ZERO-DEPENDENCY SVG ICONS                                                */
-/* ------------------------------------------------------------------------- */
 function CrownIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg
@@ -235,9 +232,8 @@ export default function TreeLoadingSplash({
   onRetry,
   onComplete,
 }: TreeLoadingSplashProps) {
-  // Stage 1 is now Maa Chamunda (as requested: "3 animation should appear first")
   const [currentStage, setCurrentStage] = useState<SplashAnimationStage>(1);
-  const [stageProgress, setStageProgress] = useState(0); // 0 to 1
+  const [stageProgress, setStageProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
@@ -250,7 +246,6 @@ export default function TreeLoadingSplash({
 
   const uid = useId().replace(/:/g, "_");
 
-  // Keep live references
   const isLoadedRef = useRef(isLoaded);
   const onCompleteRef = useRef(onComplete);
   const currentStageRef = useRef(currentStage);
@@ -1847,12 +1842,6 @@ function PariharRoyalCrestAnimation({
         <h2 className="font-display text-xl sm:text-2xl font-bold tracking-wide text-white mt-1">
           Parihar Lineage - पड़िहार वंश
         </h2>
-        {/* <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
-          The mighty eagle with chirping cry under the blazing rotating sun,
-          flanked by waving Bhagwa flags and crossed talwars, bearing the banner
-          of <span className="font-semibold text-amber-300">पड़िहार</span>.
-        </p> */}
-
         {/* Eagle Chirp trigger button */}
         <div className="mt-3 flex items-center gap-2">
           <button

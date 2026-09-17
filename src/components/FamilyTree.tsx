@@ -29,7 +29,6 @@ interface FamilyTreeProps {
   adminPersonId?: string;
 }
 
-// Compact dimensions tuned to the dark genealogy-board design.
 const CARD_W = 128;
 const CARD_H = 48;
 const GAP_Y = 82;
@@ -37,12 +36,7 @@ const SPOUSE_GAP = 15;
 const SIBLING_GAP = 30;
 const EXTRA_PER_SIBLING = 8;
 const FAMILY_GAP = 56;
-// const MAX_UNITS_PER_ROW = 8;
 const LEVEL_GAP = CARD_H + GAP_Y;
-
-// function fullName(node: TreeNode) {
-//   return `${node.person.firstName} ${node.person.lastName}`;
-// }
 
 function lifespan(node: TreeNode, lang: "en" | "hi" = "en") {
   const birth = node.person.birthDate?.slice(0, 4) ?? "?";
@@ -92,7 +86,6 @@ export default function FamilyTree({
   const zoomMenuRef = useRef<HTMLDivElement>(null);
   const themeMenuRef = useRef<HTMLDivElement>(null);
 
-  // Track newly loaded nodes to trigger entrance pop-in animation
   const previousNodeIds = useRef<Set<string>>(new Set());
   const [newlyAddedNodeIds, setNewlyAddedNodeIds] = useState<Set<string>>(
     new Set(),
@@ -167,7 +160,6 @@ export default function FamilyTree({
   const liveTransform = useRef(transform);
   const hasUserPanned = useRef(false);
 
-  // Measure and track container dimensions with ResizeObserver
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -189,7 +181,6 @@ export default function FamilyTree({
     return () => ro.disconnect();
   }, []);
 
-  // When focusId changes, reset expanded branches and view pan status
   useEffect(() => {
     setExpandedAncestors([]);
     setExpandedDescendants([]);
@@ -235,7 +226,6 @@ export default function FamilyTree({
       })
       .catch((err) => {
         if (!cancelled) {
-          // Attempt offline cache recovery
           try {
             const cached = localStorage.getItem(`lineage_tree_v3_${focusId}`);
             if (cached) {
@@ -264,11 +254,6 @@ export default function FamilyTree({
     expandedDescendants,
   ]);
 
-  // Recenter the view whenever a new tree loads.
-  // useEffect(() => {
-  //   if (graph) setTransform({ x: 0, y: 0, scale: 1 });
-  // }, [graph?.focusId]);
-
   useEffect(() => {
     liveTransform.current = transform;
   }, [transform]);
@@ -288,8 +273,6 @@ export default function FamilyTree({
     if (!graph || !graph.nodes || graph.nodes.length === 0) return null;
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
 
-    // Direct children per parent (from parent-child edges).
-    // Ensure both parent and child exist in byId.
     const childrenIndex = new Map<string, Set<string>>();
     const hasParentInGraph = new Set<string>();
     for (const e of graph.edges) {
@@ -300,8 +283,6 @@ export default function FamilyTree({
       }
     }
 
-    // Pick one spouse per person (first spouse edge) so couples share a "unit".
-    // Ensure both spouses exist in byId.
     const spouseEdges = new Map<string, Set<string>>();
     for (const e of graph.edges) {
       if (e.type === "spouse" && byId.has(e.from) && byId.has(e.to)) {
@@ -389,7 +370,6 @@ export default function FamilyTree({
     const gapForGroup = (count: number) =>
       SIBLING_GAP + EXTRA_PER_SIBLING * Math.max(0, count - 3);
 
-    // Bottom-up: how much horizontal room does this unit + all its descendants need?
     const widthCache = new Map<string, number>();
     const widthStack = new Set<string>();
 
@@ -457,7 +437,6 @@ export default function FamilyTree({
       }
     };
 
-    // Roots = units where nobody in the graph is their parent.
     const allUnitKeys = new Set(graph.nodes.map((n) => unitKeyFor(n.id)));
     let rootUnits = Array.from(allUnitKeys).filter((key) =>
       unitMembers(key).every((m) => !hasParentInGraph.has(m)),
@@ -568,7 +547,6 @@ export default function FamilyTree({
     }
   }, [layout, containerSize, centerOnFocus]);
 
-  // Zoom bounds: responsive zoom from 15% to 400%
   const zoomBounds = useMemo(() => {
     return { min: 0.15, max: 4 };
   }, []);
@@ -579,7 +557,6 @@ export default function FamilyTree({
   );
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    // e.preventDefault();
     (e.target as Element).setPointerCapture(e.pointerId);
     activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     hasUserPanned.current = true;
@@ -621,7 +598,6 @@ export default function FamilyTree({
       if (!activePointers.current.has(e.pointerId)) return;
       activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-      // Two-finger pinch zoom centered on touch center
       if (activePointers.current.size >= 2 && pinchState.current) {
         const [p1, p2] = Array.from(activePointers.current.values());
         const el = containerRef.current;
@@ -664,7 +640,6 @@ export default function FamilyTree({
         return;
       }
 
-      // Single pointer drag
       if (!dragState.current) return;
       const { startX, startY, ox, oy } = dragState.current;
       const next = {
@@ -705,7 +680,6 @@ export default function FamilyTree({
     }
   }, []);
 
-  // Zoom around cursor on wheel / trackpad pinch
   const onWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
@@ -743,7 +717,6 @@ export default function FamilyTree({
     [clampScale, containerSize],
   );
 
-  // Zoom around viewport center for toolbar + / - buttons
   const zoomBy = useCallback(
     (delta: number) => {
       const el = containerRef.current;
@@ -758,7 +731,6 @@ export default function FamilyTree({
           : el?.clientHeight ||
             (typeof window !== "undefined" ? window.innerHeight : 800);
 
-      // Pivot is the center of the current screen view
       const pivotX = viewportW / 2;
       const pivotY = viewportH / 2;
 
@@ -863,7 +835,6 @@ export default function FamilyTree({
     [clampScale, containerSize],
   );
 
-  // Keyboard navigation for zoom and reset
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -934,14 +905,19 @@ export default function FamilyTree({
   const handleExpandAncestors = useCallback((personId: string) => {
     setExpandingId(personId);
     setExpandedAncestors((prev) =>
-      prev.includes(personId) ? prev : [...prev, personId],
+      prev.includes(personId)
+        ? prev.filter((id) => id !== personId)
+        : [...prev, personId],
     );
   }, []);
 
   const handleExpandDescendants = useCallback((personId: string) => {
     setExpandingId(personId);
+
     setExpandedDescendants((prev) =>
-      prev.includes(personId) ? prev : [...prev, personId],
+      prev.includes(personId)
+        ? prev.filter((id) => id !== personId)
+        : [...prev, personId],
     );
   }, []);
 
@@ -975,25 +951,21 @@ export default function FamilyTree({
 
       const clone = svgEl.cloneNode(true) as SVGSVGElement;
 
-      // Clean interactive expand buttons from export SVG so output is pristine
       clone
         .querySelectorAll("[data-tree-expand-btn]")
         .forEach((btn) => btn.remove());
 
-      // 1. Reset root export group transform so whole tree is rendered from (0,0)
       const g = clone.querySelector("[data-export-root]") as SVGGElement | null;
       if (g) {
         g.removeAttribute("style");
         g.removeAttribute("transform");
       }
 
-      // 2. Add full SVG namespaces & required viewBox attributes
       clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
       clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
       clone.setAttribute("viewBox", `0 0 ${layout.viewW} ${layout.viewH}`);
       clone.removeAttribute("style");
 
-      // 3. Compute safe scale factor to prevent browser canvas memory exhaustion
       const maxDim = 4096;
       const maxArea = 16 * 1024 * 1024;
       let scale = scaleFactor;
@@ -1017,7 +989,6 @@ export default function FamilyTree({
       clone.setAttribute("width", String(safeWidth));
       clone.setAttribute("height", String(safeHeight));
 
-      // 4. Safe dark background rect insertion using createElementNS
       const bgRect = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "rect",
@@ -1027,7 +998,6 @@ export default function FamilyTree({
       bgRect.setAttribute("fill", "#0a0e26");
       clone.insertBefore(bgRect, clone.firstChild);
 
-      // 5. Add an aesthetic header banner in the top margin
       const focusNode = graph.nodes.find(
         (n) => n.id === (localFocusId || focusId),
       );
@@ -1080,11 +1050,8 @@ export default function FamilyTree({
 
       clone.appendChild(titleGroup);
 
-      // 6. Serialize to string
       let svgString = new XMLSerializer().serializeToString(clone);
 
-      // 7. Font resolution: CRITICAL - replace CSS variables with clean SINGLE-QUOTED font stacks
-      // Never allow unescaped double quotes inside XML attribute values!
       const rootStyles =
         typeof window !== "undefined"
           ? getComputedStyle(document.documentElement)
@@ -1096,7 +1063,6 @@ export default function FamilyTree({
         rootStyles?.getPropertyValue("--font-body").trim() ||
         "'Inter', system-ui, sans-serif";
 
-      // Replace any double quotes with single quotes to prevent breaking XML attribute syntax
       displayFont = displayFont.replace(/"/g, "'");
       bodyFont = bodyFont.replace(/"/g, "'");
 
@@ -1147,7 +1113,6 @@ export default function FamilyTree({
         }
         const { svgString, safeWidth, safeHeight, baseFilename } = prepared;
 
-        // Use data URI for Image src to avoid WebKit/Safari "tainted canvas" error with Blob URLs
         const dataUri =
           "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
 
@@ -1170,11 +1135,9 @@ export default function FamilyTree({
                 throw new Error("Unable to obtain 2D canvas context");
               }
 
-              // Pre-fill canvas with dark background
               ctx.fillStyle = "#0a0e26";
               ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-              // Draw image
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
               canvas.toBlob(
@@ -1221,7 +1184,6 @@ export default function FamilyTree({
           "PNG export encountered an issue, falling back to SVG:",
           err,
         );
-        // Automatic graceful fallback to SVG export so the user ALWAYS gets their download!
         try {
           const fallbackPrepared = prepareExportSvg(1);
           if (fallbackPrepared) {
@@ -1247,7 +1209,6 @@ export default function FamilyTree({
     [prepareExportSvg, triggerDownload],
   );
 
-  // Keep exportAsImage as an alias for backwards compatibility
   const exportAsImage = useCallback(
     async (scaleFactor = 2) => {
       return exportAsPng(scaleFactor);

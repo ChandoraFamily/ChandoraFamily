@@ -55,7 +55,8 @@ export default function AnimatedBackground() {
     }
 
     const colors = themeConfig.particleColors;
-    const particleCount = Math.min(Math.floor((width * height) / 22000), 55) || 35;
+    const particleCount =
+      Math.min(Math.floor((width * height) / 22000), 55) || 35;
     let particles: Particle[] = [];
 
     const initParticles = () => {
@@ -77,7 +78,6 @@ export default function AnimatedBackground() {
 
     initParticles();
 
-    // Ambient floating orbs state
     let orbAngle = 0;
 
     const render = () => {
@@ -88,7 +88,6 @@ export default function AnimatedBackground() {
 
       ctx.clearRect(0, 0, width, height);
 
-      // Draw subtle background ambient glowing orbs
       orbAngle += 0.003;
       const orb1X = width * 0.3 + Math.sin(orbAngle) * 80;
       const orb1Y = height * 0.25 + Math.cos(orbAngle * 0.8) * 60;
@@ -128,7 +127,6 @@ export default function AnimatedBackground() {
       ctx.arc(orb2X, orb2Y, orb2Rad, 0, Math.PI * 2);
       ctx.fill();
 
-      // Draw delicate connecting filaments between close particles
       const maxDist = 110;
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
@@ -149,12 +147,10 @@ export default function AnimatedBackground() {
         }
       }
 
-      // Update and draw star particles
       for (const p of particles) {
         p.x += p.vx;
         p.y += p.vy;
 
-        // Wrap around boundaries
         if (p.x < 0) p.x = width;
         if (p.x > width) p.x = 0;
         if (p.y < 0) p.y = height;
@@ -170,7 +166,6 @@ export default function AnimatedBackground() {
         ctx.globalAlpha = safeAlpha;
         ctx.fill();
 
-        // Delicate shimmer glow on larger stars
         if (p.size > 1.8) {
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2);
@@ -198,17 +193,17 @@ export default function AnimatedBackground() {
       className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
       aria-hidden="true"
     >
-      {/* Subtle radial depth gradient */}
       <div
         className="absolute inset-0 opacity-70"
         style={{
-          backgroundImage: `radial-gradient(circle at 50% 0%, ${themeConfig.glowColor} 0%, transparent 60%), radial-gradient(circle at 50% 100%, ${themeConfig.glowColor.replace(
+          backgroundImage: `radial-gradient(circle at 50% 0%, ${
+            themeConfig.glowColor
+          } 0%, transparent 60%), radial-gradient(circle at 50% 100%, ${themeConfig.glowColor.replace(
             "0.35",
             "0.15",
           )} 0%, transparent 60%)`,
         }}
       />
-      {/* Subtle dot matrix grid */}
       <div
         className="absolute inset-0 opacity-25"
         style={{
@@ -217,7 +212,6 @@ export default function AnimatedBackground() {
           backgroundSize: "28px 28px",
         }}
       />
-      {/* HTML5 Canvas for animated particles */}
       {backgroundAnimation && (
         <canvas
           ref={canvasRef}

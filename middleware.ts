@@ -1,19 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// In-memory sliding-window limiter. This resets on every server restart and
-// does NOT share state across multiple server instances/edge regions — fine
-// for a single-server deployment (including the Electron/standalone case),
-// but for a multi-instance production deploy you'll want a shared store
-// (e.g. Upstash Redis) instead. Say the word if you get there.
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 60;
 const hits = new Map<string, { count: number; windowStart: number }>();
 
-const BAD_BOT_PATTERNS = [
-  /python-requests/i,
-  /scrapy/i,
-  /wget/i,
-];
+const BAD_BOT_PATTERNS = [/python-requests/i, /scrapy/i, /wget/i];
 
 export function middleware(req: NextRequest) {
   const ip =

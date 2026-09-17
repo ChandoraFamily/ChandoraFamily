@@ -1,5 +1,3 @@
-// Electron entry point for the Windows desktop build.
-
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
@@ -48,8 +46,6 @@ function startProductionServer() {
       ...process.env,
       PORT: String(PROD_PORT),
       NODE_ENV: "production",
-      // In a packaged app, process.execPath is Electron.exe. This ensures
-      // the bundled Next.js server starts as Node rather than a second GUI.
       ELECTRON_RUN_AS_NODE: "1",
     },
     stdio: "inherit",
@@ -66,7 +62,6 @@ function setupEscapeToQuit() {
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
-    // fullscreen: true,
     frame: true,
     backgroundColor: "#EAE3D3",
     autoHideMenuBar: true,
@@ -82,14 +77,12 @@ async function createWindow() {
   setupEscapeToQuit();
 
   if (app.isPackaged) {
-    // Production / installed Electron app
     startProductionServer();
 
     await waitForServer(`http://localhost:${PROD_PORT}`);
 
     mainWindow.loadURL(`http://localhost:${PROD_PORT}`);
   } else {
-    // Development
     await waitForServer(`http://localhost:${DEV_PORT}`);
 
     mainWindow.loadURL(`http://localhost:${DEV_PORT}`);

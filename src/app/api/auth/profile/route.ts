@@ -26,7 +26,6 @@ export async function PATCH(req: NextRequest) {
   }
   await user.save();
 
-  // Refresh the session cookie so the new name shows up immediately.
   const token = signSession({
     userId: user._id.toString(),
     email: user.email,

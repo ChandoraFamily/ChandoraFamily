@@ -254,20 +254,6 @@ const LanguageContext = createContext<LanguageContextType>({
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  // const [lang, setLangState] = useState<Language>(() => {
-  //   if (typeof window !== "undefined") {
-  //     try {
-  //       const saved = localStorage.getItem("lineage_lang") as Language;
-  //       if (saved === "en" || saved === "hi") {
-  //         return saved;
-  //       }
-  //     } catch {
-  //       // ignore
-  //     }
-  //   }
-  //   return "en";
-  // });
-
   const [lang, setLangState] = useState<Language>("en");
 
   useEffect(() => {

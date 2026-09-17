@@ -3,7 +3,6 @@ const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
   images: {
-    // Person photos may be uploaded/stored locally or point at remote URLs.
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
   async headers() {
@@ -21,7 +20,6 @@ const nextConfig = {
         ],
       },
       {
-        // Enforce noindex on all API endpoints so search engines never index or crawl them
         source: "/api/:path*",
         headers: [
           { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
@@ -29,7 +27,6 @@ const nextConfig = {
         ],
       },
       {
-        // Cache static audio and image assets for instant load and minimum server load
         source: "/(sounds|audio|icons)/:path*",
         headers: [
           {

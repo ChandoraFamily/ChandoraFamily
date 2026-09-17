@@ -1,12 +1,3 @@
-// Electron entry point for the Windows desktop build.
-//
-// Because this app has real API routes (not just static pages), we can't
-// ship it as static HTML. Instead we bundle the Next.js "standalone" server
-// (see next.config.js -> output: 'standalone') and run it as a child Node
-// process on a local port, then point a normal BrowserWindow at it. From
-// the user's point of view it behaves like a native desktop app; under the
-// hood it's the same Next.js app that runs on the web.
-
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
@@ -38,7 +29,6 @@ function waitForServer(url, timeoutMs = 15000) {
 }
 
 function startServer() {
-  // The Next.js "standalone" build outputs a self-contained server.js.
   const serverEntry = path.join(
     __dirname,
     "..",

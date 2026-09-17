@@ -13,7 +13,6 @@ export default function ContactForm({ onClose }: { onClose: () => void }) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-fill user information once loaded if form fields are empty
   useEffect(() => {
     if (user) {
       setForm((prev) => ({
@@ -24,7 +23,6 @@ export default function ContactForm({ onClose }: { onClose: () => void }) {
     }
   }, [user]);
 
-  // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -96,9 +94,9 @@ export default function ContactForm({ onClose }: { onClose: () => void }) {
                 Message Sent Successfully
               </p>
               <p className="mt-1 text-sm text-[#8993ad]">
-                Thank you for reaching out. We will review your message and reply
-                to <span className="text-[#a98cff]">{form.email}</span> as soon as
-                possible.
+                Thank you for reaching out. We will review your message and
+                reply to <span className="text-[#a98cff]">{form.email}</span> as
+                soon as possible.
               </p>
             </div>
             <div className="flex justify-center gap-3 pt-2">
@@ -124,8 +122,8 @@ export default function ContactForm({ onClose }: { onClose: () => void }) {
         ) : (
           <form onSubmit={submit} className="lineage-form mt-4 space-y-4">
             <p className="text-xs text-[#8993ad]">
-              Have questions, corrections, or family updates? Send a note directly to
-              the tree administrators.
+              Have questions, corrections, or family updates? Send a note
+              directly to the tree administrators.
             </p>
 
             <div>

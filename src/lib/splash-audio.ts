@@ -571,57 +571,8 @@ export async function playEagleChirpSound(muted = false): Promise<void> {
   }
 
   if (reqId !== currentPlayRequestId) return;
-
-  // Procedural Eagle Screech Synthesis via Web Audio API
-  // const audioSetup = getAudioContext();
-  // if (!audioSetup) return;
-
-  // const { ctx, masterGain } = audioSetup;
-  // const now = ctx.currentTime;
-
-  // [0, 0.45].forEach((chirpOffset, idx) => {
-  //   const start = now + chirpOffset;
-  //   const osc = ctx.createOscillator();
-  //   const gain = ctx.createGain();
-  //   const filter = ctx.createBiquadFilter();
-
-  //   const vibrato = ctx.createOscillator();
-  //   const vibratoGain = ctx.createGain();
-  //   vibrato.frequency.setValueAtTime(22, start); // 22 Hz rapid vibrato
-  //   vibratoGain.gain.setValueAtTime(140, start);
-  //   vibrato.connect(osc.frequency);
-
-  //   filter.type = "bandpass";
-  //   filter.frequency.setValueAtTime(2800, start);
-  //   filter.Q.setValueAtTime(4, start);
-
-  //   osc.type = "sawtooth";
-  //   osc.frequency.setValueAtTime(2100, start);
-  //   osc.frequency.exponentialRampToValueAtTime(3400 - idx * 200, start + 0.08);
-  //   osc.frequency.exponentialRampToValueAtTime(1850, start + 0.38);
-
-  //   gain.gain.setValueAtTime(0, start);
-  //   gain.gain.linearRampToValueAtTime(0.28, start + 0.04);
-  //   gain.gain.exponentialRampToValueAtTime(0.001, start + 0.42);
-
-  //   vibrato.start(start);
-  //   osc.connect(filter);
-  //   filter.connect(gain);
-  //   gain.connect(masterGain);
-
-  //   osc.start(start);
-  //   osc.stop(start + 0.44);
-  //   vibrato.stop(start + 0.44);
-
-  //   trackWebAudioNode(osc);
-  //   trackWebAudioNode(vibrato);
-  // });
 }
 
-/**
- * Starts ambient burning fire crackling & roaring flame sound.
- * Loops continuously while the Sacred Fire stage is active.
- */
 export async function startFireSound(
   muted = false,
 ): Promise<{ stop: () => void }> {
@@ -673,78 +624,6 @@ export async function startFireSound(
   if (reqId !== currentPlayRequestId) return { stop: () => {} };
 
   return { stop: () => {} };
-
-  // Procedural Web Audio Burning Fire & Crackle Generator
-  // const audioSetup = getAudioContext();
-  // if (!audioSetup) return { stop: () => {} };
-
-  // const { ctx, masterGain } = audioSetup;
-  // let isRunning = true;
-  // const now = ctx.currentTime;
-
-  // // 1. Low frequency roaring flame rumble
-  // const rumbleBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-  // const rumbleData = rumbleBuffer.getChannelData(0);
-  // let lastVal = 0;
-  // for (let i = 0; i < rumbleBuffer.length; i++) {
-  //   const white = Math.random() * 2 - 1;
-  //   lastVal = (lastVal + 0.02 * white) / 1.02; // Brown noise for deep roar
-  //   rumbleData[i] = lastVal * 3.5;
-  // }
-
-  // const rumbleSrc = ctx.createBufferSource();
-  // rumbleSrc.buffer = rumbleBuffer;
-  // rumbleSrc.loop = true;
-
-  // const rumbleFilter = ctx.createBiquadFilter();
-  // rumbleFilter.type = "lowpass";
-  // rumbleFilter.frequency.setValueAtTime(140, now);
-
-  // const rumbleGain = ctx.createGain();
-  // rumbleGain.gain.setValueAtTime(0.28, now);
-
-  // rumbleSrc.connect(rumbleFilter);
-  // rumbleFilter.connect(rumbleGain);
-  // rumbleGain.connect(masterGain);
-  // rumbleSrc.start(now);
-  // trackWebAudioNode(rumbleSrc);
-
-  // // 2. Continuous crackles and wood pops using random short bursts
-  // const scheduleNextPop = () => {
-  //   if (!isRunning || !ctx || ctx.state === "closed") return;
-
-  //   const delay = Math.random() * 120 + 40; // 40-160ms between snaps
-  //   crackleTimeoutId = setTimeout(() => {
-  //     if (!isRunning) return;
-  //     playWoodCrackSnap(ctx, masterGain);
-  //     scheduleNextPop();
-  //   }, delay);
-  // };
-
-  // scheduleNextPop();
-
-  // activeFireSource = {
-  //   stop: () => {
-  //     isRunning = false;
-  //     if (crackleTimeoutId) {
-  //       clearTimeout(crackleTimeoutId);
-  //       crackleTimeoutId = null;
-  //     }
-  //     try {
-  //       rumbleGain.gain.cancelScheduledValues(ctx.currentTime);
-  //       rumbleGain.gain.setValueAtTime(0, ctx.currentTime);
-  //       setTimeout(() => {
-  //         try {
-  //           rumbleSrc.stop();
-  //           rumbleSrc.disconnect();
-  //         } catch {}
-  //       }, 150);
-  //     } catch {}
-  //     activeFireSource = null;
-  //   },
-  // };
-
-  // return activeFireSource;
 }
 
 function playWoodCrackSnap(

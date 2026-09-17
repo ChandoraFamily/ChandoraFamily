@@ -23,7 +23,6 @@ function getUserName(user: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-//user profile pictures
 function getUserProfilePicture(user: unknown) {
   if (!user || typeof user !== "object") return "";
   const data = user as Record<string, unknown>;
@@ -110,24 +109,15 @@ export default function HomePage() {
   const userEmail = getUserEmail(user);
 
   useEffect(() => {
-    if (focusId) return;
+    const params = new URLSearchParams(window.location.search);
+    const personId = params.get("person")?.trim();
 
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const sharedPersonId = params.get("person");
-      if (sharedPersonId) {
-        setFocusId(sharedPersonId);
-        setSelectedId(sharedPersonId); // opens the detail panel too
-        return;
-      }
+    if (personId) {
+      setFocusId(personId);
+      setSelectedId(personId);
+      return;
     }
 
-    fetch("/api/config/focus");
-    // ...existing fallback logic unchanged
-  }, [focusId, refreshKey]);
-
-  // Load configured focus person (defaults to Admin), falling back to first person.
-  useEffect(() => {
     if (focusId) return;
     fetch("/api/config/focus")
       .then(async (res) => {
