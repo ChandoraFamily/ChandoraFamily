@@ -1,3 +1,39 @@
+# robots.txt for Chandora (chandora.in)
+# Designed for high search visibility for "chandora" while strictly protecting server resources
+# against crawler loops, infinite parameter paths, and excessive load.
+
 User-agent: *
+Allow: /$
+Allow: /sitemap.xml
+Allow: /manifest.webmanifest
+Allow: /icon-*.png
+Allow: /sounds/
+Allow: /audio/
+
+# Prevent server overload & infinite crawl loops
 Disallow: /api/
-Disallow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /*?*
+Disallow: /*&*
+
+# Crawl-delay for polite crawling on resource-constrained servers
+Crawl-delay: 10
+
+# Googlebot specific rules
+User-agent: Googlebot
+Allow: /$
+Allow: /sitemap.xml
+Allow: /manifest.webmanifest
+Disallow: /api/
+Disallow: /*?*
+
+# Bingbot specific rules
+User-agent: Bingbot
+Allow: /$
+Allow: /sitemap.xml
+Disallow: /api/
+Disallow: /*?*
+Crawl-delay: 10
+
+Sitemap: https://chandora.in/sitemap.xml

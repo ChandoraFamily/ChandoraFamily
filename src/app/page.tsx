@@ -232,6 +232,12 @@ export default function HomePage() {
           }}
         />
       )}
+      {/* Semantic H1 and Crawler Summary for Chandora SEO & Accessibility */}
+      <h1 className="sr-only">
+        Chandora – Official Chandora Family Tree &amp; Lineage Archive |
+        chandora.in
+      </h1>
+
       <header
         className="lineage-header flex min-h-[76px] items-center justify-between gap-4 border-b px-4 py-3 sm:px-6 lg:px-7 transition-colors duration-500"
         style={{

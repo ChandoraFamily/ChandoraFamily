@@ -8,6 +8,8 @@ import {
   stopFireSound,
   stopAllSplashAudio,
   setCustomAudioUrl,
+  unlockAudio,
+  preloadSplashAudio,
 } from "@/lib/splash-audio";
 
 interface TreeLoadingSplashProps {
@@ -241,6 +243,11 @@ export default function TreeLoadingSplash({
   const [isExiting, setIsExiting] = useState(false);
   const [showAudioSettings, setShowAudioSettings] = useState(false);
 
+  useEffect(() => {
+    unlockAudio();
+    preloadSplashAudio().catch(() => {});
+  }, []);
+
   const uid = useId().replace(/:/g, "_");
 
   // Keep live references
@@ -287,8 +294,10 @@ export default function TreeLoadingSplash({
     if (currentStage === 1) {
       playJaiMaaChamundaSound(isMuted);
     } else if (currentStage === 2) {
+      console.log("current Stage: ", currentStage);
       playEagleChirpSound(isMuted);
     } else if (currentStage === 3) {
+      console.log("current Stage: ", currentStage);
       startFireSound(isMuted);
     } else {
       stopAllSplashAudio();
@@ -343,16 +352,19 @@ export default function TreeLoadingSplash({
   }, []);
 
   const jumpToStage = (stage: SplashAnimationStage) => {
+    unlockAudio();
     setCurrentStage(stage);
     setStageProgress(0);
   };
 
   const prevStage = () => {
+    unlockAudio();
     setCurrentStage((s) => (s > 1 ? ((s - 1) as SplashAnimationStage) : 1));
     setStageProgress(0);
   };
 
   const nextStage = () => {
+    unlockAudio();
     if (currentStage < 4) {
       setCurrentStage((s) => (s + 1) as SplashAnimationStage);
       setStageProgress(0);
@@ -362,6 +374,7 @@ export default function TreeLoadingSplash({
   };
 
   const toggleSound = () => {
+    unlockAudio();
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
     if (nextMuted) {
@@ -373,8 +386,13 @@ export default function TreeLoadingSplash({
     }
   };
 
+  const handleGlobalClick = () => {
+    unlockAudio();
+  };
+
   return (
     <div
+      onClick={handleGlobalClick}
       className={`fixed inset-0 z-50 flex flex-col items-center justify-between bg-[#070919] text-white transition-opacity duration-500 select-none overflow-hidden ${
         isExiting ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
@@ -531,6 +549,10 @@ export default function TreeLoadingSplash({
                 progress={stageProgress}
                 uid={`${uid}_fire`}
                 isMuted={isMuted}
+                onPlayFire={() => {
+                  unlockAudio();
+                  startFireSound(false);
+                }}
               />
             )}
 
@@ -1852,10 +1874,12 @@ function FireAndTreeAnimation({
   progress,
   uid,
   isMuted,
+  onPlayFire,
 }: {
   progress: number;
   uid: string;
   isMuted: boolean;
+  onPlayFire?: () => void;
 }) {
   // Phase 1 (0.00 - 0.40): Burning fire intensifies
   const fireIntensity =
@@ -2206,9 +2230,21 @@ function FireAndTreeAnimation({
           From the sacred Agnikula fire altar of Mount Abu, through generations
           of courage, our roots have grown into an enduring lineage tree.
         </p>
-        <div className="mt-2.5 flex items-center gap-1.5 text-xs text-amber-300/80 bg-amber-950/40 border border-amber-500/20 px-3 py-1 rounded-full">
-          <FlameIcon className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-          <span>Burning Fire Ambient Audio Active</span>
+        <div className="mt-2.5 flex items-center gap-2">
+          {onPlayFire ? (
+            <button
+              onClick={onPlayFire}
+              className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-3.5 py-1 text-xs font-semibold text-amber-300 shadow-md backdrop-blur transition hover:scale-105 active:scale-95"
+            >
+              <FlameIcon className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
+              <span>🔥 Sacred Fire Sound (Crackle)</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-amber-300/80 bg-amber-950/40 border border-amber-500/20 px-3 py-1 rounded-full">
+              <FlameIcon className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
+              <span>Burning Fire Ambient Audio Active</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

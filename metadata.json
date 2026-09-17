@@ -1,6 +1,6 @@
 {
   "name": "Chandora Family Tree",
-  "description": "Interactive pedigree and family tree genealogy app with person search, relationship calculations, and lineage exploration.",
+  "description": "Official Chandora family tree, genealogy archive, and ancestral lineage records at chandora.in. Explore Chandora heritage, pedigree search, and family history curated by Ajay Kumar Chandora.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

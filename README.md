@@ -61,17 +61,17 @@ capacitor.config.ts           # Android wrapper config
 All routes return `{ data: ... }` on success or `{ error: string }` on
 failure, with a matching HTTP status code.
 
-| Method | Path                        | Description                                    |
-|--------|-----------------------------|------------------------------------------------|
-| GET    | `/api/persons`              | List all persons                               |
-| GET    | `/api/persons?q=smith`      | Search by first/last/maiden name or place       |
-| POST   | `/api/persons`               | Create a person                                |
-| GET    | `/api/persons/:id`          | Get one person                                 |
-| PUT    | `/api/persons/:id`          | Partially update a person                       |
-| DELETE | `/api/persons/:id`          | Delete a person (detaches them from relatives)  |
-| GET    | `/api/persons/:id/tree?up=3&down=3` | Positioned graph (nodes+edges) centered on this person |
-| POST   | `/api/relationships`        | Body: `{ type: "parent-child"\|"spouse", personId, relatedId }`. For `parent-child`, `personId` is the parent. |
-| DELETE | `/api/relationships`        | Same body shape — removes the link             |
+| Method | Path                                | Description                                                                                                    |
+| ------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/persons`                      | List all persons                                                                                               |
+| GET    | `/api/persons?q=smith`              | Search by first/last/maiden name or place                                                                      |
+| POST   | `/api/persons`                      | Create a person                                                                                                |
+| GET    | `/api/persons/:id`                  | Get one person                                                                                                 |
+| PUT    | `/api/persons/:id`                  | Partially update a person                                                                                      |
+| DELETE | `/api/persons/:id`                  | Delete a person (detaches them from relatives)                                                                 |
+| GET    | `/api/persons/:id/tree?up=3&down=3` | Positioned graph (nodes+edges) centered on this person                                                         |
+| POST   | `/api/relationships`                | Body: `{ type: "parent-child"\|"spouse", personId, relatedId }`. For `parent-child`, `personId` is the parent. |
+| DELETE | `/api/relationships`                | Same body shape — removes the link                                                                             |
 
 `Person` shape (`src/types/person.ts`):
 
@@ -144,6 +144,7 @@ view.
 ## What to customize next
 
 Tell me what you'd like adjusted — e.g.:
+
 - Swap the JSON store for a real database (Postgres via Prisma, SQLite, etc.)
 - Add authentication / multi-tree (multiple family trees per account)
 - Add photo upload for person records
