@@ -12,10 +12,8 @@ const config: CapacitorConfig = {
   appName: "Lineage",
   webDir: "out", // unused when server.url is set, but required by the CLI
   server: {
-    url: "http://192.168.1.8:3000/",
-    // This address is only for local Android testing. Use a deployed HTTPS
-    // address before distributing an APK.
-    cleartext: true,
+    url: "https://chandora.in",
+    cleartext: false,
   },
   android: {
     backgroundColor: "#EAE3D3",

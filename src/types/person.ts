@@ -36,6 +36,8 @@ export interface RelationshipRequest {
   personId: string;
   /** For parent-child: the child's id. For spouse: the other spouse's id. */
   relatedId: string;
+  /** Optional ID of an existing parent to replace if person already has 2 parents */
+  replaceParentId?: string;
 }
 
 /** A node in the rendered family-tree graph, positioned in generation/slot space. */

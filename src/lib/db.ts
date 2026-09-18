@@ -185,6 +185,7 @@ export async function createPerson(input: PersonInput): Promise<Person> {
     updatedAt: now,
   };
   store.set(id, person);
+  saveInMemoryPersonsToFile();
   return person;
 }
 
@@ -216,6 +217,7 @@ export async function updatePerson(
     updatedAt: new Date().toISOString(),
   };
   store.set(id, updated);
+  saveInMemoryPersonsToFile();
   return updated;
 }
 
@@ -261,6 +263,7 @@ export async function deletePerson(id: string): Promise<boolean> {
       });
     }
   }
+  saveInMemoryPersonsToFile();
   return true;
 }
 
@@ -327,6 +330,7 @@ export async function addRelationship(
   type: "parent-child" | "spouse",
   personId: string,
   relatedId: string,
+  options?: { replaceParentId?: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (personId === relatedId) {
     return { ok: false, error: "A person cannot be related to themself." };
@@ -349,14 +353,27 @@ export async function addRelationship(
           return { ok: false, error: "Relationship already exists." };
         }
         if (b.parentIds.length >= 2) {
-          return { ok: false, error: "This person already has two parents." };
+          if (
+            options?.replaceParentId &&
+            b.parentIds.includes(options.replaceParentId)
+          ) {
+            b.parentIds = b.parentIds.map((pid: string) =>
+              pid === options.replaceParentId ? a.id : pid,
+            );
+          } else {
+            return { ok: false, error: "This person already has two parents." };
+          }
+        } else {
+          b.parentIds.push(a.id);
         }
-        b.parentIds.push(a.id);
       }
       await Promise.all([a.save(), b.save()]);
       return { ok: true };
     } catch (err) {
-      console.warn("MongoDB addRelationship failed, using in-memory store:", err);
+      console.warn(
+        "MongoDB addRelationship failed, using in-memory store:",
+        err,
+      );
     }
   }
 
@@ -370,18 +387,46 @@ export async function addRelationship(
     const bSpouse = new Set(b.spouseIds);
     aSpouse.add(b.id);
     bSpouse.add(a.id);
-    store.set(a.id, { ...a, spouseIds: Array.from(aSpouse) });
-    store.set(b.id, { ...b, spouseIds: Array.from(bSpouse) });
+    store.set(a.id, {
+      ...a,
+      spouseIds: Array.from(aSpouse),
+      updatedAt: new Date().toISOString(),
+    });
+    store.set(b.id, {
+      ...b,
+      spouseIds: Array.from(bSpouse),
+      updatedAt: new Date().toISOString(),
+    });
   } else {
     if (b.parentIds.includes(a.id)) {
       return { ok: false, error: "Relationship already exists." };
     }
     if (b.parentIds.length >= 2) {
-      return { ok: false, error: "This person already has two parents." };
+      if (
+        options?.replaceParentId &&
+        b.parentIds.includes(options.replaceParentId)
+      ) {
+        const newParents = b.parentIds.map((pid) =>
+          pid === options.replaceParentId ? a.id : pid,
+        );
+        store.set(b.id, {
+          ...b,
+          parentIds: newParents,
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        return { ok: false, error: "This person already has two parents." };
+      }
+    } else {
+      store.set(b.id, {
+        ...b,
+        parentIds: [...b.parentIds, a.id],
+        updatedAt: new Date().toISOString(),
+      });
     }
-    store.set(b.id, { ...b, parentIds: [...b.parentIds, a.id] });
   }
 
+  saveInMemoryPersonsToFile();
   return { ok: true };
 }
 
@@ -408,7 +453,10 @@ export async function removeRelationship(
       await Promise.all([a.save(), b.save()]);
       return { ok: true };
     } catch (err) {
-      console.warn("MongoDB removeRelationship failed, using in-memory store:", err);
+      console.warn(
+        "MongoDB removeRelationship failed, using in-memory store:",
+        err,
+      );
     }
   }
 
@@ -421,18 +469,22 @@ export async function removeRelationship(
     store.set(a.id, {
       ...a,
       spouseIds: a.spouseIds.filter((id) => id !== b.id),
+      updatedAt: new Date().toISOString(),
     });
     store.set(b.id, {
       ...b,
       spouseIds: b.spouseIds.filter((id) => id !== a.id),
+      updatedAt: new Date().toISOString(),
     });
   } else {
     store.set(b.id, {
       ...b,
       parentIds: b.parentIds.filter((id) => id !== a.id),
+      updatedAt: new Date().toISOString(),
     });
   }
 
+  saveInMemoryPersonsToFile();
   return { ok: true };
 }
 
@@ -447,7 +499,10 @@ export async function listAllPersonsForTree(): Promise<Person[]> {
         .lean<PersonDocument[]>();
       return docs.map(toPerson);
     } catch (err) {
-      console.warn("MongoDB listAllPersonsForTree failed, using in-memory store:", err);
+      console.warn(
+        "MongoDB listAllPersonsForTree failed, using in-memory store:",
+        err,
+      );
     }
   }
 
@@ -593,7 +648,11 @@ export async function getDefaultFocusId(): Promise<string> {
 
   // Check persisted config file if present
   try {
-    const configPath = path.join(process.cwd(), "assets", "lineage.config.json");
+    const configPath = path.join(
+      process.cwd(),
+      "assets",
+      "lineage.config.json",
+    );
     if (fs.existsSync(configPath)) {
       const raw = fs.readFileSync(configPath, "utf-8");
       const parsed = JSON.parse(raw);
@@ -627,10 +686,18 @@ export async function setDefaultFocusId(id: string): Promise<boolean> {
 
   global._defaultFocusId = id;
   try {
-    const configPath = path.join(process.cwd(), "assets", "lineage.config.json");
+    const configPath = path.join(
+      process.cwd(),
+      "assets",
+      "lineage.config.json",
+    );
     fs.writeFileSync(
       configPath,
-      JSON.stringify({ defaultFocusId: id, updatedAt: new Date().toISOString() }, null, 2),
+      JSON.stringify(
+        { defaultFocusId: id, updatedAt: new Date().toISOString() },
+        null,
+        2,
+      ),
       "utf-8",
     );
   } catch (err) {
@@ -707,4 +774,3 @@ export async function bulkUpdateHindiNames(
   saveInMemoryPersonsToFile();
   return count;
 }
-

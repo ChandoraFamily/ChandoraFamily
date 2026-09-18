@@ -76,7 +76,10 @@ async function createWindow() {
 
   setupEscapeToQuit();
 
-  if (app.isPackaged) {
+  const remoteServerUrl = process.env.SERVER_URL;
+  if (remoteServerUrl) {
+    mainWindow.loadURL(remoteServerUrl);
+  } else if (app.isPackaged) {
     startProductionServer();
 
     await waitForServer(`http://localhost:${PROD_PORT}`);

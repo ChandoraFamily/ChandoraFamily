@@ -109,8 +109,8 @@ A phone can't run a background Node server the way a desktop can, so the
 standard pattern — and the one this project uses — is:
 
 1. Deploy this Next.js app (API routes included) somewhere with a stable
-   URL: Vercel, Render, your own VPS, etc.
-2. Point `capacitor.config.ts`'s `server.url` at that deployed domain.
+   URL: Vercel, Render, your own VPS, or production domain (e.g. `https://chandora.in`).
+2. Point `capacitor.config.ts`'s `server.url` at that domain (`https://chandora.in`).
 3. Wrap it:
 
 ```bash

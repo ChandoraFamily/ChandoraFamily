@@ -6,8 +6,10 @@ import { useLanguage } from "@/lib/language-context";
 
 interface PersonFormProps {
   initial?: Person;
-  onSaved: (person: Person) => void;
+  onSaved: (person: Person) => Promise<void> | void;
   onCancel: () => void;
+  defaultValues?: Partial<PersonInput>;
+  submitLabel?: string;
 }
 
 const emptyForm: PersonInput = {
@@ -26,6 +28,8 @@ export default function PersonForm({
   initial,
   onSaved,
   onCancel,
+  defaultValues,
+  submitLabel,
 }: PersonFormProps) {
   const { lang, t } = useLanguage();
   const [form, setForm] = useState<PersonInput>(
@@ -43,7 +47,10 @@ export default function PersonForm({
           deathPlace: initial.deathPlace ?? "",
           bio: initial.bio ?? "",
         }
-      : emptyForm,
+      : {
+          ...emptyForm,
+          ...defaultValues,
+        },
   );
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -111,7 +118,7 @@ export default function PersonForm({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Save failed.");
-      onSaved(json.data as Person);
+      await onSaved(json.data as Person);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -172,7 +179,9 @@ export default function PersonForm({
             ) : (
               <>
                 <span>✨</span>
-                <span>{t("form.autoTranslate", "Auto-Translate to Hindi")}</span>
+                <span>
+                  {t("form.autoTranslate", "Auto-Translate to Hindi")}
+                </span>
               </>
             )}
           </button>
@@ -214,8 +223,12 @@ export default function PersonForm({
             onChange={(e) => set("gender", e.target.value as Gender)}
             className={inputClass}
           >
-            <option value="unknown">{t("person.gender.unknown", "Unspecified")}</option>
-            <option value="female">{t("person.gender.female", "Female")}</option>
+            <option value="unknown">
+              {t("person.gender.unknown", "Unspecified")}
+            </option>
+            <option value="female">
+              {t("person.gender.female", "Female")}
+            </option>
             <option value="male">{t("person.gender.male", "Male")}</option>
             <option value="other">{t("person.gender.other", "Other")}</option>
           </select>
@@ -279,6 +292,8 @@ export default function PersonForm({
         >
           {saving
             ? t("form.saving", "Saving…")
+            : submitLabel
+            ? submitLabel
             : initial
             ? t("form.save", "Save changes")
             : t("form.save", "Add to tree")}

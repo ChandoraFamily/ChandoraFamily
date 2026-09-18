@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Person, ConnectedRelative } from "@/types/person";
+import type { Person, ConnectedRelative, PersonInput } from "@/types/person";
 import PersonForm from "./PersonForm";
 import SuggestEditForm from "./SuggestEditForm";
 import { useAuth } from "@/lib/auth-context";
@@ -43,6 +43,11 @@ export default function PersonDetailPanel({
   const [relativeType, setRelativeType] = useState<
     "parent" | "child" | "spouse"
   >("child");
+  const [replaceParentId, setReplaceParentId] = useState<string>("");
+  const [linkSpouseAsCoParent, setLinkSpouseAsCoParent] =
+    useState<boolean>(true);
+  const [selectedSpouseId, setSelectedSpouseId] = useState<string>("");
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [shareCopied, setShareCopied] = useState(false);
 
@@ -183,6 +188,19 @@ export default function PersonDetailPanel({
       .catch((err) => console.error("Error loading person details:", err));
   }, [personId, refreshKey]);
 
+  useEffect(() => {
+    if (connected.length > 0) {
+      const parents = connected.filter((c) => c.type === "parent");
+      if (parents.length > 0) {
+        setReplaceParentId((prev) => prev || parents[0].person.id);
+      }
+      const spouses = connected.filter((c) => c.type === "spouse");
+      if (spouses.length > 0) {
+        setSelectedSpouseId((prev) => prev || spouses[0].person.id);
+      }
+    }
+  }, [connected]);
+
   if (!personId) return null;
 
   const handleDelete = async () => {
@@ -223,6 +241,18 @@ export default function PersonDetailPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4">
+        {actionNotice && (
+          <div className="mb-4 rounded-xl border border-emerald-500/40 bg-emerald-950/50 p-3 text-xs text-emerald-300 flex items-center justify-between gap-2 shadow-sm">
+            <span>{actionNotice}</span>
+            <button
+              onClick={() => setActionNotice(null)}
+              className="text-emerald-400 hover:text-white px-1 text-sm leading-none"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {!person && <p className="text-sm text-[#8993ad]">Loading…</p>}
 
         {person && mode === "view" && (
@@ -608,46 +638,285 @@ export default function PersonDetailPanel({
           />
         )}
 
-        {person && mode === "add-relative" && (
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-[#8993ad]">
-                Relationship
-              </label>
-              <select
-                value={relativeType}
-                onChange={(e) =>
-                  setRelativeType(e.target.value as typeof relativeType)
-                }
-                className="lineage-input"
-              >
-                <option value="parent">New parent</option>
-                <option value="child">New child</option>
-                <option value="spouse">New spouse / partner</option>
-              </select>
-            </div>
-            <PersonForm
-              onCancel={() => setMode("view")}
-              onSaved={async (newPerson) => {
-                const type =
-                  relativeType === "spouse" ? "spouse" : "parent-child";
-                const personId =
-                  relativeType === "parent" ? newPerson.id : person.id;
-                const relatedId =
-                  relativeType === "parent" ? person.id : newPerson.id;
-                await fetch("/api/relationships", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ type, personId, relatedId }),
-                });
-                onChanged();
-                setRefreshKey((k) => k + 1);
-                onNavigate(person.id);
-                setMode("view");
-              }}
-            />
-          </div>
-        )}
+        {person &&
+          mode === "add-relative" &&
+          (() => {
+            const existingParents = connected.filter(
+              (c) => c.type === "parent",
+            );
+            const existingSpouses = connected.filter(
+              (c) => c.type === "spouse",
+            );
+            const personHasTwoParents =
+              (person.parentIds?.length ?? 0) >= 2 ||
+              existingParents.length >= 2;
+
+            const defaultValues: Partial<PersonInput> = {
+              lastName: person.lastName ?? "",
+              gender:
+                relativeType === "spouse"
+                  ? person.gender === "male"
+                    ? "female"
+                    : person.gender === "female"
+                    ? "male"
+                    : "unknown"
+                  : "unknown",
+            };
+
+            return (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[#8993ad]">
+                    {t("rel.relationship", "Relationship")}
+                  </label>
+                  <select
+                    value={relativeType}
+                    onChange={(e) => {
+                      const newType = e.target.value as typeof relativeType;
+                      setRelativeType(newType);
+                    }}
+                    className="lineage-input"
+                  >
+                    <option value="child">
+                      {lang === "hi"
+                        ? `नई संतान (${fullName(person, lang)} की)`
+                        : `New child of ${fullName(person, lang)}`}
+                    </option>
+                    <option value="parent">
+                      {lang === "hi"
+                        ? `नए माता/पिता (${fullName(person, lang)} के)`
+                        : `New parent of ${fullName(person, lang)}`}
+                    </option>
+                    <option value="spouse">
+                      {lang === "hi"
+                        ? `नए जीवनसाथी (${fullName(person, lang)} के)`
+                        : `New spouse / partner of ${fullName(person, lang)}`}
+                    </option>
+                  </select>
+                </div>
+
+                {/* Notice when adding Parent */}
+                {relativeType === "parent" &&
+                  (personHasTwoParents ? (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                        <span>⚠️</span>
+                        <span>
+                          {lang === "hi"
+                            ? `${fullName(
+                                person,
+                                lang,
+                              )} के पहले से 2 माता-पिता दर्ज हैं`
+                            : `${fullName(
+                                person,
+                                lang,
+                              )} already has two parents recorded`}
+                        </span>
+                      </p>
+                      <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                        {lang === "hi"
+                          ? "पारिवारिक वंशावली में अधिकतम दो जैविक माता-पिता होते हैं। कृपया चुनें कि नए रिकॉर्ड द्वारा किस माता/पिता को बदलना है:"
+                          : "Family lineage trees link up to two biological parents. Please choose which parent this new entry replaces:"}
+                      </p>
+                      <div className="space-y-1.5 pt-1">
+                        {existingParents.map((p) => (
+                          <label
+                            key={p.person.id}
+                            className="flex items-center gap-2 text-xs text-white cursor-pointer"
+                          >
+                            <input
+                              type="radio"
+                              name="replaceParentChoice"
+                              value={p.person.id}
+                              checked={replaceParentId === p.person.id}
+                              onChange={(e) =>
+                                setReplaceParentId(e.target.value)
+                              }
+                              className="text-amber-500"
+                            />
+                            <span>
+                              {lang === "hi" ? "बदलें" : "Replace"} {p.relation}{" "}
+                              ({fullName(p.person, lang)})
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ) : existingParents.length === 1 ? (
+                    <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/30 p-2.5 text-xs text-indigo-300">
+                      ℹ️{" "}
+                      {lang === "hi"
+                        ? `दूसरे माता/पिता जोड़ रहे हैं। (वर्तमान: ${fullName(
+                            existingParents[0].person,
+                            lang,
+                          )})`
+                        : `Adding second parent. (Current parent: ${fullName(
+                            existingParents[0].person,
+                            lang,
+                          )})`}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/30 p-2.5 text-xs text-indigo-300">
+                      ℹ️{" "}
+                      {lang === "hi"
+                        ? `${fullName(
+                            person,
+                            lang,
+                          )} के प्रथम माता/पिता जोड़ रहे हैं`
+                        : `Adding first parent for ${fullName(person, lang)}`}
+                    </div>
+                  ))}
+
+                {/* Co-parent option when adding Child */}
+                {relativeType === "child" && existingSpouses.length > 0 && (
+                  <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3 space-y-2">
+                    <label className="flex items-start gap-2 text-xs text-indigo-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={linkSpouseAsCoParent}
+                        onChange={(e) =>
+                          setLinkSpouseAsCoParent(e.target.checked)
+                        }
+                        className="mt-0.5 rounded text-[#8a5cff]"
+                      />
+                      <div>
+                        <span className="font-medium text-white">
+                          {lang === "hi"
+                            ? `जीवनसाथी (${fullName(
+                                existingSpouses[0].person,
+                                lang,
+                              )}) को भी माता/पिता के रूप में जोड़ें`
+                            : `Also link spouse (${fullName(
+                                existingSpouses[0].person,
+                                lang,
+                              )}) as second parent`}
+                        </span>
+                        <p className="text-[11px] text-indigo-300/70 mt-0.5">
+                          {lang === "hi"
+                            ? "यह संतान को दोनों माता-पिता से जोड़ेगा ताकि वह सही परिवार शाखा में दिखे।"
+                            : "Connects child to both parents so they appear properly in the family unit."}
+                        </p>
+                      </div>
+                    </label>
+
+                    {existingSpouses.length > 1 && linkSpouseAsCoParent && (
+                      <div className="pt-1">
+                        <label className="text-[11px] text-[#8993ad] block mb-1">
+                          {lang === "hi" ? "जीवनसाथी चुनें:" : "Select spouse:"}
+                        </label>
+                        <select
+                          value={selectedSpouseId}
+                          onChange={(e) => setSelectedSpouseId(e.target.value)}
+                          className="lineage-input text-xs"
+                        >
+                          {existingSpouses.map((s) => (
+                            <option key={s.person.id} value={s.person.id}>
+                              {s.relation}: {fullName(s.person, lang)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <PersonForm
+                  key={`${relativeType}-${person.id}`}
+                  defaultValues={defaultValues}
+                  submitLabel={
+                    relativeType === "parent"
+                      ? lang === "hi"
+                        ? "माता/पिता जोड़ें"
+                        : "Add parent"
+                      : relativeType === "spouse"
+                      ? lang === "hi"
+                        ? "जीवनसाथी जोड़ें"
+                        : "Add spouse"
+                      : lang === "hi"
+                      ? "संतान जोड़ें"
+                      : "Add child"
+                  }
+                  onCancel={() => setMode("view")}
+                  onSaved={async (newPerson) => {
+                    const type =
+                      relativeType === "spouse" ? "spouse" : "parent-child";
+                    const personId =
+                      relativeType === "parent" ? newPerson.id : person.id;
+                    const relatedId =
+                      relativeType === "parent" ? person.id : newPerson.id;
+
+                    const body: Record<string, string> = {
+                      type,
+                      personId,
+                      relatedId,
+                    };
+
+                    if (
+                      relativeType === "parent" &&
+                      personHasTwoParents &&
+                      replaceParentId
+                    ) {
+                      body.replaceParentId = replaceParentId;
+                    }
+
+                    const res = await fetch("/api/relationships", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(body),
+                    });
+                    const json = await res.json();
+                    if (!res.ok) {
+                      throw new Error(
+                        json.error ||
+                          (lang === "hi"
+                            ? "संबंध जोड़ने में त्रुटि हुई।"
+                            : "Failed to link relationship."),
+                      );
+                    }
+
+                    // If adding a child and co-parent spouse is selected, link child to spouse too
+                    if (
+                      relativeType === "child" &&
+                      linkSpouseAsCoParent &&
+                      selectedSpouseId
+                    ) {
+                      try {
+                        await fetch("/api/relationships", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            type: "parent-child",
+                            personId: selectedSpouseId,
+                            relatedId: newPerson.id,
+                          }),
+                        });
+                      } catch (err) {
+                        console.warn("Could not link co-parent spouse:", err);
+                      }
+                    }
+
+                    setActionNotice(
+                      lang === "hi"
+                        ? `${fullName(
+                            newPerson,
+                            lang,
+                          )} को सफलतापूर्वक वंशावली में जोड़ा गया!`
+                        : `${fullName(
+                            newPerson,
+                            lang,
+                          )} was successfully added and linked to the tree!`,
+                    );
+                    setTimeout(() => setActionNotice(null), 5000);
+
+                    onChanged();
+                    setRefreshKey((k) => k + 1);
+                    onNavigate(person.id);
+                    setMode("view");
+                  }}
+                />
+              </div>
+            );
+          })()}
       </div>
     </aside>
   );

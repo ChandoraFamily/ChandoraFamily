@@ -62,6 +62,12 @@ async function createWindow() {
     icon: path.join(__dirname, "..", "build", "icon.ico"),
   });
 
+  const remoteServerUrl = process.env.SERVER_URL;
+  if (remoteServerUrl) {
+    mainWindow.loadURL(remoteServerUrl);
+    return;
+  }
+
   await waitForServer(`http://localhost:${PORT}`);
   mainWindow.loadURL(`http://localhost:${PORT}`);
 }
