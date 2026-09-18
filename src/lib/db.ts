@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { dbConnect, isMongoAvailable } from "@/lib/mongoose";
+import { dbConnect } from "@/lib/mongoose";
 import { PersonModel, PersonDocument } from "@/lib/models/Person";
 import type { Person, PersonInput, ConnectedRelative } from "@/types/person";
 import { getRelativeRelation } from "@/lib/relationship";
@@ -12,46 +12,17 @@ declare global {
   var _defaultFocusId: string | undefined;
 }
 
-// Helper to keep in-memory store in sync with MongoDB writes
-function syncInMemoryPerson(person: Person) {
-  if (global._inMemoryPersons) {
-    global._inMemoryPersons.set(person.id, person);
-  }
-}
-
-function removeInMemoryPerson(id: string) {
-  if (global._inMemoryPersons) {
-    global._inMemoryPersons.delete(id);
-    // Clean up references in other persons
-    for (const p of global._inMemoryPersons.values()) {
-      let changed = false;
-      if (p.parentIds.includes(id)) {
-        p.parentIds = p.parentIds.filter((pid) => pid !== id);
-        changed = true;
-      }
-      if (p.spouseIds.includes(id)) {
-        p.spouseIds = p.spouseIds.filter((sid) => sid !== id);
-        changed = true;
-      }
-      if (changed) {
-        p.updatedAt = new Date().toISOString();
-      }
-    }
-  }
-}
-
 async function getInMemoryPersons(): Promise<Map<string, Person>> {
   if (global._inMemoryPersons) return global._inMemoryPersons;
   const store = new Map<string, Person>();
 
-  // PRIORITY 1: If MongoDB is available, populate from DB (ignores stale JSON)
-  if (isMongoAvailable()) {
+  // 1. Try to load from MongoDB first to ensure data is fresh
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const docs = await PersonModel.find().lean<PersonDocument[]>();
       for (const doc of docs) {
-        const p = toPerson(doc);
-        store.set(p.id, p);
+        store.set(doc._id.toString(), toPerson(doc));
       }
       global._inMemoryPersons = store;
       return store;
@@ -63,7 +34,7 @@ async function getInMemoryPersons(): Promise<Map<string, Person>> {
     }
   }
 
-  // PRIORITY 2: Fallback to JSON file ONLY if MongoDB is offline
+  // 2. Fallback to JSON file ONLY if MongoDB is completely unreachable
   try {
     const filePath = path.join(process.cwd(), "assets", "lineage.people.json");
     if (fs.existsSync(filePath)) {
@@ -76,17 +47,17 @@ async function getInMemoryPersons(): Promise<Map<string, Person>> {
             (typeof item._id === "string" ? item._id : item._id?.toString?.());
           if (!id) continue;
           let createdAt = new Date(0).toISOString();
-          if (item.createdAt?.$date) {
+          if (item.createdAt?.$date)
             createdAt = new Date(item.createdAt.$date).toISOString();
-          } else if (typeof item.createdAt === "string") {
+          else if (typeof item.createdAt === "string")
             createdAt = item.createdAt;
-          }
+
           let updatedAt = createdAt;
-          if (item.updatedAt?.$date) {
+          if (item.updatedAt?.$date)
             updatedAt = new Date(item.updatedAt.$date).toISOString();
-          } else if (typeof item.updatedAt === "string") {
+          else if (typeof item.updatedAt === "string")
             updatedAt = item.updatedAt;
-          }
+
           const p: Person = {
             id,
             firstName: item.firstName || "",
@@ -145,9 +116,9 @@ function toPerson(doc: PersonDocument): Person {
 export async function listPersons(
   opts: { limit?: number; skip?: number } = {},
 ): Promise<Person[]> {
-  if (isMongoAvailable()) {
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const docs = await PersonModel.find()
         .sort({ lastName: 1, firstName: 1 })
         .skip(opts.skip ?? 0)
@@ -165,15 +136,13 @@ export async function listPersons(
     if (ln !== 0) return ln;
     return (a.firstName || "").localeCompare(b.firstName || "");
   });
-  const skip = opts.skip ?? 0;
-  const limit = opts.limit ?? 50;
-  return all.slice(skip, skip + limit);
+  return all.slice(opts.skip ?? 0, (opts.skip ?? 0) + (opts.limit ?? 50));
 }
 
 export async function getPerson(id: string): Promise<Person | null> {
-  if (isMongoAvailable()) {
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const doc = await PersonModel.findById(id).lean<PersonDocument>();
       if (doc) return toPerson(doc);
     } catch (err) {
@@ -185,9 +154,9 @@ export async function getPerson(id: string): Promise<Person | null> {
 }
 
 export async function createPerson(input: PersonInput): Promise<Person> {
-  if (isMongoAvailable()) {
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const doc = await PersonModel.create({
         ...input,
         firstName: input.firstName.trim(),
@@ -199,12 +168,17 @@ export async function createPerson(input: PersonInput): Promise<Person> {
         spouseIds: input.spouseIds ?? [],
       });
       const person = toPerson(doc.toObject());
-      syncInMemoryPerson(person); // Keep fallback cache in sync
+      // Keep in-memory cache perfectly synced
+      if (global._inMemoryPersons)
+        global._inMemoryPersons.set(person.id, person);
       return person;
     } catch (err) {
-      console.warn("MongoDB createPerson failed, using in-memory store:", err);
+      console.error("🚨 MongoDB createPerson failed:", err);
     }
   }
+  console.warn(
+    "⚠️ Database offline, using temporary in-memory store (data will be lost on restart)",
+  );
   const store = await getInMemoryPersons();
   const hex = Math.random().toString(16).slice(2, 10);
   const id = `6aa1${hex}${Date.now().toString(16).slice(-12)}`.slice(0, 24);
@@ -236,9 +210,9 @@ export async function updatePerson(
   id: string,
   patch: Partial<PersonInput>,
 ): Promise<Person | null> {
-  if (isMongoAvailable()) {
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const doc = await PersonModel.findByIdAndUpdate(
         id,
         { $set: patch },
@@ -246,13 +220,15 @@ export async function updatePerson(
       ).lean<PersonDocument>();
       if (doc) {
         const person = toPerson(doc);
-        syncInMemoryPerson(person); // Keep fallback cache in sync
+        if (global._inMemoryPersons)
+          global._inMemoryPersons.set(person.id, person);
         return person;
       }
     } catch (err) {
-      console.warn("MongoDB updatePerson failed, using in-memory store:", err);
+      console.error("🚨 MongoDB updatePerson failed:", err);
     }
   }
+  console.warn("⚠️ Database offline, using temporary in-memory store");
   const store = await getInMemoryPersons();
   const existing = store.get(id);
   if (!existing) return null;
@@ -266,44 +242,35 @@ export async function updatePerson(
 }
 
 export async function deletePerson(id: string): Promise<boolean> {
-  if (isMongoAvailable()) {
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const res = await PersonModel.findByIdAndDelete(id);
       if (!res) return false;
       await PersonModel.updateMany(
         {},
         { $pull: { parentIds: id, spouseIds: id } },
       );
-      removeInMemoryPerson(id); // Keep fallback cache in sync
+      if (global._inMemoryPersons) {
+        global._inMemoryPersons.delete(id);
+        for (const p of global._inMemoryPersons.values()) {
+          p.parentIds = p.parentIds.filter((pid) => pid !== id);
+          p.spouseIds = p.spouseIds.filter((sid) => sid !== id);
+        }
+      }
       return true;
     } catch (err) {
-      console.warn("MongoDB deletePerson failed, using in-memory store:", err);
+      console.error("🚨 MongoDB deletePerson failed:", err);
     }
   }
+  console.warn("⚠️ Database offline, using temporary in-memory store");
   const store = await getInMemoryPersons();
   if (!store.has(id)) return false;
   store.delete(id);
   for (const person of store.values()) {
-    let changed = false;
-    let newParents = person.parentIds;
-    let newSpouses = person.spouseIds;
-    if (newParents.includes(id)) {
-      newParents = newParents.filter((pId) => pId !== id);
-      changed = true;
-    }
-    if (newSpouses.includes(id)) {
-      newSpouses = newSpouses.filter((sId) => sId !== id);
-      changed = true;
-    }
-    if (changed) {
-      store.set(person.id, {
-        ...person,
-        parentIds: newParents,
-        spouseIds: newSpouses,
-        updatedAt: new Date().toISOString(),
-      });
-    }
+    person.parentIds = person.parentIds.filter((pId) => pId !== id);
+    person.spouseIds = person.spouseIds.filter((sId) => sId !== id);
+    person.updatedAt = new Date().toISOString();
   }
   return true;
 }
@@ -314,9 +281,9 @@ export async function searchPersons(
 ): Promise<Person[]> {
   const q = query.trim();
   if (!q) return listPersons(opts);
-  if (isMongoAvailable()) {
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const regex = new RegExp(q, "i");
       const docs = await PersonModel.find({
         $or: [
@@ -353,13 +320,9 @@ export async function searchPersons(
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
-    if (text.includes(lower)) {
-      matched.push(person);
-    }
+    if (text.includes(lower)) matched.push(person);
   }
-  const skip = opts.skip ?? 0;
-  const limit = opts.limit ?? 50;
-  return matched.slice(skip, skip + limit);
+  return matched.slice(opts.skip ?? 0, (opts.skip ?? 0) + (opts.limit ?? 50));
 }
 
 export async function addRelationship(
@@ -368,24 +331,24 @@ export async function addRelationship(
   relatedId: string,
   options?: { replaceParentId?: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (personId === relatedId) {
+  if (personId === relatedId)
     return { ok: false, error: "A person cannot be related to themself." };
-  }
-  if (isMongoAvailable()) {
+
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const [a, b] = await Promise.all([
         PersonModel.findById(personId),
         PersonModel.findById(relatedId),
       ]);
       if (!a || !b) return { ok: false, error: "Person not found." };
+
       if (type === "spouse") {
         if (!a.spouseIds.includes(b.id)) a.spouseIds.push(b.id);
         if (!b.spouseIds.includes(a.id)) b.spouseIds.push(a.id);
       } else {
-        if (b.parentIds.includes(a.id)) {
+        if (b.parentIds.includes(a.id))
           return { ok: false, error: "Relationship already exists." };
-        }
         if (b.parentIds.length >= 2) {
           if (
             options?.replaceParentId &&
@@ -402,20 +365,22 @@ export async function addRelationship(
         }
       }
       await Promise.all([a.save(), b.save()]);
-      syncInMemoryPerson(toPerson(a.toObject())); // Keep fallback cache in sync
-      syncInMemoryPerson(toPerson(b.toObject()));
+      if (global._inMemoryPersons) {
+        global._inMemoryPersons.set(a.id, toPerson(a.toObject()));
+        global._inMemoryPersons.set(b.id, toPerson(b.toObject()));
+      }
       return { ok: true };
     } catch (err) {
-      console.warn(
-        "MongoDB addRelationship failed, using in-memory store:",
-        err,
-      );
+      console.error("🚨 MongoDB addRelationship failed:", err);
     }
   }
+
+  console.warn("⚠️ Database offline, using temporary in-memory store");
   const store = await getInMemoryPersons();
   const a = store.get(personId);
   const b = store.get(relatedId);
   if (!a || !b) return { ok: false, error: "Person not found." };
+
   if (type === "spouse") {
     const aSpouse = new Set(a.spouseIds);
     const bSpouse = new Set(b.spouseIds);
@@ -432,20 +397,18 @@ export async function addRelationship(
       updatedAt: new Date().toISOString(),
     });
   } else {
-    if (b.parentIds.includes(a.id)) {
+    if (b.parentIds.includes(a.id))
       return { ok: false, error: "Relationship already exists." };
-    }
     if (b.parentIds.length >= 2) {
       if (
         options?.replaceParentId &&
         b.parentIds.includes(options.replaceParentId)
       ) {
-        const newParents = b.parentIds.map((pid) =>
-          pid === options.replaceParentId ? a.id : pid,
-        );
         store.set(b.id, {
           ...b,
-          parentIds: newParents,
+          parentIds: b.parentIds.map((pid) =>
+            pid === options.replaceParentId ? a.id : pid,
+          ),
           updatedAt: new Date().toISOString(),
         });
       } else {
@@ -467,14 +430,15 @@ export async function removeRelationship(
   personId: string,
   relatedId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (isMongoAvailable()) {
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const [a, b] = await Promise.all([
         PersonModel.findById(personId),
         PersonModel.findById(relatedId),
       ]);
       if (!a || !b) return { ok: false, error: "Person not found." };
+
       if (type === "spouse") {
         a.spouseIds = a.spouseIds.filter((id) => id !== b.id);
         b.spouseIds = b.spouseIds.filter((id) => id !== a.id);
@@ -482,20 +446,22 @@ export async function removeRelationship(
         b.parentIds = b.parentIds.filter((id) => id !== a.id);
       }
       await Promise.all([a.save(), b.save()]);
-      syncInMemoryPerson(toPerson(a.toObject())); // Keep fallback cache in sync
-      syncInMemoryPerson(toPerson(b.toObject()));
+      if (global._inMemoryPersons) {
+        global._inMemoryPersons.set(a.id, toPerson(a.toObject()));
+        global._inMemoryPersons.set(b.id, toPerson(b.toObject()));
+      }
       return { ok: true };
     } catch (err) {
-      console.warn(
-        "MongoDB removeRelationship failed, using in-memory store:",
-        err,
-      );
+      console.error("🚨 MongoDB removeRelationship failed:", err);
     }
   }
+
+  console.warn("⚠️ Database offline, using temporary in-memory store");
   const store = await getInMemoryPersons();
   const a = store.get(personId);
   const b = store.get(relatedId);
   if (!a || !b) return { ok: false, error: "Person not found." };
+
   if (type === "spouse") {
     store.set(a.id, {
       ...a,
@@ -518,9 +484,9 @@ export async function removeRelationship(
 }
 
 export async function listAllPersonsForTree(): Promise<Person[]> {
-  if (isMongoAvailable()) {
+  const conn = await dbConnect();
+  if (conn) {
     try {
-      await dbConnect();
       const docs = await PersonModel.find()
         .select(
           "firstName middleName lastName hindiName maidenName gender birthDate deathDate birthPlace deathPlace parentIds spouseIds createdAt updatedAt",
@@ -546,6 +512,7 @@ export async function getConnectedRelatives(
   if (!person) return [];
   const results: ConnectedRelative[] = [];
   const seenIds = new Set<string>();
+
   for (const parentId of person.parentIds) {
     const parent = persons.find((p) => p.id === parentId);
     if (parent && !seenIds.has(parent.id)) {
@@ -682,12 +649,37 @@ export async function setDefaultFocusId(id: string): Promise<boolean> {
   const p = await getPerson(id);
   if (!p) return false;
   global._defaultFocusId = id;
+  // fs.writeFileSync removed to prevent production crashes
   return true;
 }
 
 export async function bulkUpdateHindiNames(
   updates: Array<{ id: string; hindiName: string }>,
 ): Promise<number> {
+  const conn = await dbConnect();
+  if (conn) {
+    try {
+      const bulkOps = updates.map(({ id, hindiName }) => ({
+        updateOne: { filter: { _id: id }, update: { $set: { hindiName } } },
+      }));
+      if (bulkOps.length > 0) {
+        await PersonModel.bulkWrite(bulkOps);
+        const updatedDocs = await PersonModel.find({
+          _id: { $in: updates.map((u) => u.id) },
+        }).lean<PersonDocument[]>();
+        if (global._inMemoryPersons) {
+          for (const doc of updatedDocs) {
+            global._inMemoryPersons.set(doc._id.toString(), toPerson(doc));
+          }
+        }
+        return updatedDocs.length;
+      }
+    } catch (err) {
+      console.error("🚨 MongoDB bulkWrite failed:", err);
+    }
+  }
+
+  console.warn("⚠️ Database offline, using temporary in-memory store");
   const store = await getInMemoryPersons();
   let count = 0;
   for (const { id, hindiName } of updates) {
@@ -697,22 +689,6 @@ export async function bulkUpdateHindiNames(
       existing.updatedAt = new Date().toISOString();
       store.set(id, existing);
       count++;
-    }
-  }
-  if (isMongoAvailable()) {
-    try {
-      await dbConnect();
-      const bulkOps = updates.map(({ id, hindiName }) => ({
-        updateOne: {
-          filter: { _id: id },
-          update: { $set: { hindiName } },
-        },
-      }));
-      if (bulkOps.length > 0) {
-        await PersonModel.bulkWrite(bulkOps);
-      }
-    } catch (err) {
-      console.warn("MongoDB bulkWrite failed:", err);
     }
   }
   return count;
