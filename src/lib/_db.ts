@@ -12,58 +12,9 @@ declare global {
   var _defaultFocusId: string | undefined;
 }
 
-// Helper to keep in-memory store in sync with MongoDB writes
-function syncInMemoryPerson(person: Person) {
-  if (global._inMemoryPersons) {
-    global._inMemoryPersons.set(person.id, person);
-  }
-}
-
-function removeInMemoryPerson(id: string) {
-  if (global._inMemoryPersons) {
-    global._inMemoryPersons.delete(id);
-    // Clean up references in other persons
-    for (const p of global._inMemoryPersons.values()) {
-      let changed = false;
-      if (p.parentIds.includes(id)) {
-        p.parentIds = p.parentIds.filter((pid) => pid !== id);
-        changed = true;
-      }
-      if (p.spouseIds.includes(id)) {
-        p.spouseIds = p.spouseIds.filter((sid) => sid !== id);
-        changed = true;
-      }
-      if (changed) {
-        p.updatedAt = new Date().toISOString();
-      }
-    }
-  }
-}
-
-async function getInMemoryPersons(): Promise<Map<string, Person>> {
+function getInMemoryPersons(): Map<string, Person> {
   if (global._inMemoryPersons) return global._inMemoryPersons;
   const store = new Map<string, Person>();
-
-  // PRIORITY 1: If MongoDB is available, populate from DB (ignores stale JSON)
-  if (isMongoAvailable()) {
-    try {
-      await dbConnect();
-      const docs = await PersonModel.find().lean<PersonDocument[]>();
-      for (const doc of docs) {
-        const p = toPerson(doc);
-        store.set(p.id, p);
-      }
-      global._inMemoryPersons = store;
-      return store;
-    } catch (err) {
-      console.warn(
-        "Failed to load in-memory store from MongoDB, falling back to JSON:",
-        err,
-      );
-    }
-  }
-
-  // PRIORITY 2: Fallback to JSON file ONLY if MongoDB is offline
   try {
     const filePath = path.join(process.cwd(), "assets", "lineage.people.json");
     if (fs.existsSync(filePath)) {
@@ -113,7 +64,6 @@ async function getInMemoryPersons(): Promise<Map<string, Person>> {
   } catch (err) {
     console.warn("[AI Studio] Could not load lineage.people.json:", err);
   }
-
   global._inMemoryPersons = store;
   return store;
 }
@@ -145,9 +95,9 @@ function toPerson(doc: PersonDocument): Person {
 export async function listPersons(
   opts: { limit?: number; skip?: number } = {},
 ): Promise<Person[]> {
+  await dbConnect();
   if (isMongoAvailable()) {
     try {
-      await dbConnect();
       const docs = await PersonModel.find()
         .sort({ lastName: 1, firstName: 1 })
         .skip(opts.skip ?? 0)
@@ -158,7 +108,7 @@ export async function listPersons(
       console.warn("MongoDB query failed, using in-memory store:", err);
     }
   }
-  const store = await getInMemoryPersons();
+  const store = getInMemoryPersons();
   const all = Array.from(store.values());
   all.sort((a, b) => {
     const ln = (a.lastName || "").localeCompare(b.lastName || "");
@@ -171,23 +121,23 @@ export async function listPersons(
 }
 
 export async function getPerson(id: string): Promise<Person | null> {
+  await dbConnect();
   if (isMongoAvailable()) {
     try {
-      await dbConnect();
       const doc = await PersonModel.findById(id).lean<PersonDocument>();
       if (doc) return toPerson(doc);
     } catch (err) {
       console.warn("MongoDB getPerson failed, using in-memory store:", err);
     }
   }
-  const store = await getInMemoryPersons();
+  const store = getInMemoryPersons();
   return store.get(id) ?? null;
 }
 
 export async function createPerson(input: PersonInput): Promise<Person> {
+  await dbConnect();
   if (isMongoAvailable()) {
     try {
-      await dbConnect();
       const doc = await PersonModel.create({
         ...input,
         firstName: input.firstName.trim(),
@@ -198,14 +148,13 @@ export async function createPerson(input: PersonInput): Promise<Person> {
         parentIds: input.parentIds ?? [],
         spouseIds: input.spouseIds ?? [],
       });
-      const person = toPerson(doc.toObject());
-      syncInMemoryPerson(person); // Keep fallback cache in sync
-      return person;
+      return toPerson(doc.toObject());
     } catch (err) {
       console.warn("MongoDB createPerson failed, using in-memory store:", err);
     }
   }
-  const store = await getInMemoryPersons();
+
+  const store = getInMemoryPersons();
   const hex = Math.random().toString(16).slice(2, 10);
   const id = `6aa1${hex}${Date.now().toString(16).slice(-12)}`.slice(0, 24);
   const now = new Date().toISOString();
@@ -229,6 +178,7 @@ export async function createPerson(input: PersonInput): Promise<Person> {
     updatedAt: now,
   };
   store.set(id, person);
+  // saveInMemoryPersonsToFile();
   return person;
 }
 
@@ -236,54 +186,55 @@ export async function updatePerson(
   id: string,
   patch: Partial<PersonInput>,
 ): Promise<Person | null> {
+  await dbConnect();
   if (isMongoAvailable()) {
     try {
-      await dbConnect();
       const doc = await PersonModel.findByIdAndUpdate(
         id,
         { $set: patch },
         { new: true },
       ).lean<PersonDocument>();
-      if (doc) {
-        const person = toPerson(doc);
-        syncInMemoryPerson(person); // Keep fallback cache in sync
-        return person;
-      }
+      if (doc) return toPerson(doc);
     } catch (err) {
       console.warn("MongoDB updatePerson failed, using in-memory store:", err);
     }
   }
-  const store = await getInMemoryPersons();
+
+  const store = getInMemoryPersons();
   const existing = store.get(id);
   if (!existing) return null;
+
   const updated: Person = {
     ...existing,
     ...patch,
     updatedAt: new Date().toISOString(),
   };
   store.set(id, updated);
+  // saveInMemoryPersonsToFile();
   return updated;
 }
 
 export async function deletePerson(id: string): Promise<boolean> {
+  await dbConnect();
   if (isMongoAvailable()) {
     try {
-      await dbConnect();
       const res = await PersonModel.findByIdAndDelete(id);
       if (!res) return false;
       await PersonModel.updateMany(
         {},
         { $pull: { parentIds: id, spouseIds: id } },
       );
-      removeInMemoryPerson(id); // Keep fallback cache in sync
       return true;
     } catch (err) {
       console.warn("MongoDB deletePerson failed, using in-memory store:", err);
     }
   }
-  const store = await getInMemoryPersons();
+
+  const store = getInMemoryPersons();
   if (!store.has(id)) return false;
   store.delete(id);
+
+  // Detach this person from anyone who referenced them.
   for (const person of store.values()) {
     let changed = false;
     let newParents = person.parentIds;
@@ -305,6 +256,7 @@ export async function deletePerson(id: string): Promise<boolean> {
       });
     }
   }
+  // saveInMemoryPersonsToFile();
   return true;
 }
 
@@ -314,9 +266,10 @@ export async function searchPersons(
 ): Promise<Person[]> {
   const q = query.trim();
   if (!q) return listPersons(opts);
+  await dbConnect();
+
   if (isMongoAvailable()) {
     try {
-      await dbConnect();
       const regex = new RegExp(q, "i");
       const docs = await PersonModel.find({
         $or: [
@@ -337,9 +290,11 @@ export async function searchPersons(
       console.warn("MongoDB searchPersons failed, using in-memory store:", err);
     }
   }
-  const store = await getInMemoryPersons();
+
+  const store = getInMemoryPersons();
   const lower = q.toLowerCase();
   const matched: Person[] = [];
+
   for (const person of store.values()) {
     const text = [
       person.firstName,
@@ -353,10 +308,12 @@ export async function searchPersons(
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
+
     if (text.includes(lower)) {
       matched.push(person);
     }
   }
+
   const skip = opts.skip ?? 0;
   const limit = opts.limit ?? 50;
   return matched.slice(skip, skip + limit);
@@ -371,14 +328,16 @@ export async function addRelationship(
   if (personId === relatedId) {
     return { ok: false, error: "A person cannot be related to themself." };
   }
+
+  await dbConnect();
   if (isMongoAvailable()) {
     try {
-      await dbConnect();
       const [a, b] = await Promise.all([
         PersonModel.findById(personId),
         PersonModel.findById(relatedId),
       ]);
       if (!a || !b) return { ok: false, error: "Person not found." };
+
       if (type === "spouse") {
         if (!a.spouseIds.includes(b.id)) a.spouseIds.push(b.id);
         if (!b.spouseIds.includes(a.id)) b.spouseIds.push(a.id);
@@ -402,8 +361,6 @@ export async function addRelationship(
         }
       }
       await Promise.all([a.save(), b.save()]);
-      syncInMemoryPerson(toPerson(a.toObject())); // Keep fallback cache in sync
-      syncInMemoryPerson(toPerson(b.toObject()));
       return { ok: true };
     } catch (err) {
       console.warn(
@@ -412,10 +369,12 @@ export async function addRelationship(
       );
     }
   }
-  const store = await getInMemoryPersons();
+
+  const store = getInMemoryPersons();
   const a = store.get(personId);
   const b = store.get(relatedId);
   if (!a || !b) return { ok: false, error: "Person not found." };
+
   if (type === "spouse") {
     const aSpouse = new Set(a.spouseIds);
     const bSpouse = new Set(b.spouseIds);
@@ -459,6 +418,8 @@ export async function addRelationship(
       });
     }
   }
+
+  saveInMemoryPersonsToFile();
   return { ok: true };
 }
 
@@ -475,6 +436,7 @@ export async function removeRelationship(
         PersonModel.findById(relatedId),
       ]);
       if (!a || !b) return { ok: false, error: "Person not found." };
+
       if (type === "spouse") {
         a.spouseIds = a.spouseIds.filter((id) => id !== b.id);
         b.spouseIds = b.spouseIds.filter((id) => id !== a.id);
@@ -482,8 +444,6 @@ export async function removeRelationship(
         b.parentIds = b.parentIds.filter((id) => id !== a.id);
       }
       await Promise.all([a.save(), b.save()]);
-      syncInMemoryPerson(toPerson(a.toObject())); // Keep fallback cache in sync
-      syncInMemoryPerson(toPerson(b.toObject()));
       return { ok: true };
     } catch (err) {
       console.warn(
@@ -492,10 +452,12 @@ export async function removeRelationship(
       );
     }
   }
-  const store = await getInMemoryPersons();
+
+  const store = getInMemoryPersons();
   const a = store.get(personId);
   const b = store.get(relatedId);
   if (!a || !b) return { ok: false, error: "Person not found." };
+
   if (type === "spouse") {
     store.set(a.id, {
       ...a,
@@ -514,6 +476,8 @@ export async function removeRelationship(
       updatedAt: new Date().toISOString(),
     });
   }
+
+  saveInMemoryPersonsToFile();
   return { ok: true };
 }
 
@@ -534,18 +498,27 @@ export async function listAllPersonsForTree(): Promise<Person[]> {
       );
     }
   }
-  const store = await getInMemoryPersons();
+
+  const store = getInMemoryPersons();
   return Array.from(store.values());
 }
 
+/**
+ * Returns all directly connected relatives for a person:
+ * Parents, Spouses, Children, Siblings, and other close blood relatives,
+ * complete with their relationship relation title in English and Hindi.
+ */
 export async function getConnectedRelatives(
   personId: string,
 ): Promise<ConnectedRelative[]> {
   const persons = await listAllPersonsForTree();
   const person = persons.find((p) => p.id === personId);
   if (!person) return [];
+
   const results: ConnectedRelative[] = [];
   const seenIds = new Set<string>();
+
+  // 1. Direct Parents
   for (const parentId of person.parentIds) {
     const parent = persons.find((p) => p.id === parentId);
     if (parent && !seenIds.has(parent.id)) {
@@ -559,6 +532,8 @@ export async function getConnectedRelatives(
       });
     }
   }
+
+  // 2. Direct Spouses
   for (const spouseId of person.spouseIds) {
     const spouse = persons.find((p) => p.id === spouseId);
     if (spouse && !seenIds.has(spouse.id)) {
@@ -572,6 +547,8 @@ export async function getConnectedRelatives(
       });
     }
   }
+
+  // Also check if anyone else has personId in their spouseIds
   for (const p of persons) {
     if (
       p.id !== personId &&
@@ -588,6 +565,8 @@ export async function getConnectedRelatives(
       });
     }
   }
+
+  // 3. Children (persons where parentIds contains personId)
   for (const p of persons) {
     if (
       p.id !== personId &&
@@ -604,6 +583,8 @@ export async function getConnectedRelatives(
       });
     }
   }
+
+  // 4. Siblings (persons sharing at least one parent, and not person themselves)
   if (person.parentIds.length > 0) {
     for (const p of persons) {
       if (
@@ -622,14 +603,18 @@ export async function getConnectedRelatives(
       }
     }
   }
+
   return results;
 }
 
 export const DEFAULT_ADMIN_PERSON_ID = "6aa19ec9d59615212690b13e";
 
 export async function getAdminPerson(): Promise<Person | null> {
+  // First priority: direct lookup of known admin person ID
   const direct = await getPerson(DEFAULT_ADMIN_PERSON_ID);
   if (direct) return direct;
+
+  // Second priority: search in memory / DB for Ajay Kumar
   const all = await listAllPersonsForTree();
   const match = all.find(
     (p) =>
@@ -639,8 +624,12 @@ export async function getAdminPerson(): Promise<Person | null> {
         p.birthPlace?.toLowerCase() === "ganganagar"),
   );
   if (match) return match;
+
+  // Third priority: any person named Ajay
   const fallbackMatch = all.find((p) => p.firstName.toLowerCase() === "ajay");
   if (fallbackMatch) return fallbackMatch;
+
+  // Fallback to first available person
   return all[0] ?? null;
 }
 
@@ -649,6 +638,8 @@ export async function getDefaultFocusId(): Promise<string> {
     const existing = await getPerson(global._defaultFocusId);
     if (existing) return existing.id;
   }
+
+  // Check persisted config file if present
   try {
     const configPath = path.join(
       process.cwd(),
@@ -669,11 +660,15 @@ export async function getDefaultFocusId(): Promise<string> {
   } catch (err) {
     console.warn("Could not read lineage.config.json:", err);
   }
+
+  // Next: default to admin person
   const admin = await getAdminPerson();
   if (admin) {
     global._defaultFocusId = admin.id;
     return admin.id;
   }
+
+  // Fallback: first person from store
   const list = await listPersons({ limit: 1 });
   return list[0]?.id || DEFAULT_ADMIN_PERSON_ID;
 }
@@ -681,15 +676,67 @@ export async function getDefaultFocusId(): Promise<string> {
 export async function setDefaultFocusId(id: string): Promise<boolean> {
   const p = await getPerson(id);
   if (!p) return false;
+
   global._defaultFocusId = id;
+  try {
+    const configPath = path.join(
+      process.cwd(),
+      "assets",
+      "lineage.config.json",
+    );
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify(
+        { defaultFocusId: id, updatedAt: new Date().toISOString() },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+  } catch (err) {
+    console.warn("Could not write lineage.config.json:", err);
+  }
   return true;
+}
+
+export function saveInMemoryPersonsToFile(): boolean {
+  try {
+    const store = getInMemoryPersons();
+    const list = Array.from(store.values()).map((p) => ({
+      _id: { $oid: p.id },
+      firstName: p.firstName,
+      middleName: p.middleName,
+      lastName: p.lastName,
+      hindiName: p.hindiName,
+      maidenName: p.maidenName,
+      gender: p.gender,
+      birthDate: p.birthDate,
+      deathDate: p.deathDate,
+      birthPlace: p.birthPlace,
+      deathPlace: p.deathPlace,
+      photoUrl: p.photoUrl,
+      bio: p.bio,
+      parentIds: p.parentIds,
+      spouseIds: p.spouseIds,
+      createdAt: { $date: p.createdAt },
+      updatedAt: { $date: p.updatedAt },
+    }));
+
+    const filePath = path.join(process.cwd(), "assets", "lineage.people.json");
+    fs.writeFileSync(filePath, JSON.stringify(list, null, 2), "utf-8");
+    return true;
+  } catch (err) {
+    console.error("Failed to save lineage.people.json:", err);
+    return false;
+  }
 }
 
 export async function bulkUpdateHindiNames(
   updates: Array<{ id: string; hindiName: string }>,
 ): Promise<number> {
-  const store = await getInMemoryPersons();
+  const store = getInMemoryPersons();
   let count = 0;
+
   for (const { id, hindiName } of updates) {
     const existing = store.get(id);
     if (existing) {
@@ -699,6 +746,7 @@ export async function bulkUpdateHindiNames(
       count++;
     }
   }
+
   if (isMongoAvailable()) {
     try {
       await dbConnect();
@@ -715,5 +763,7 @@ export async function bulkUpdateHindiNames(
       console.warn("MongoDB bulkWrite failed:", err);
     }
   }
+
+  saveInMemoryPersonsToFile();
   return count;
 }
